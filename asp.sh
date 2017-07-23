@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Jared Still - Pythian
+# still@pythian.com jkstill@gmail.com
+# 2017-07-20
+
 # asp - another sar processor
 
 # tested on Red Hat Enterprise Linux Server release 6.6 (Santiago)
