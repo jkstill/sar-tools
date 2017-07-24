@@ -7,16 +7,45 @@
 # asp - another sar processor
 
 # tested on Red Hat Enterprise Linux Server release 6.6 (Santiago)
+# also tested on Linux Mint
+
+help() {
+	echo
+	echo $0 -s source-dir -d dest-dir
+	echo
+}
+
+
 
 # variables can be set to identify multiple sets of copied sar files
-sarMstrDir='/home/jkstill/pythian/carecentrix/sar'
-sarSrcDirs=( sa )
-sarDstDir="${sarMstrDir}/data/sar-csv"
+sarSrcDir='/var/log/sa' # RedHat, CentOS ...
+#sarSrcDir='/var/log/sysstat' # Debian, Ubuntu ...
 
-# uncomment this line to use local sar files
-# need cmdline options for this
-#sarMstrDir='/var/log'
-sarDstDir='/mnt/zips/moriarty/zips/oracle/Free-Oracle-Tools/data/sar-csv'
+sarDstDir="sar-csv"
+
+csvConvertCmd=" sed -e 's/;/,/g' "
+
+
+while getopts s:d:h arg
+do
+	case $arg in
+		d) sarDstDir=$OPTARG;;
+		s) sarSrcDir=$OPTARG;;
+		h) help; exit 0;;
+		*) help; exit 1;;
+	esac
+done
+
+
+cat << EOF
+
+Source: $sarSrcDir
+  Dest: $sarDstDir
+
+EOF
+
+#exit
+
 
 mkdir -p $sarDstDir || {
 
@@ -26,8 +55,6 @@ mkdir -p $sarDstDir || {
 	exit 1
 
 }
-
-lastSaDirEl=${#sarSrcDirs[@]}
 
 echo "lastSaDirEl: $lastSaDirEl"
 
@@ -46,9 +73,13 @@ echo "lastSaDirEl: $lastSaDirEl"
 # -n network
 # -v kernel filesystem stats
 # -w  context switches and task creation
-sarDestOptions=( '-d -j LABEL -p' '-b' '-q' '-u ALL' '-r' '-R' '-B' '-S' '-W' '-n DEV,EDEV,NFS,NFSD,SOCK,IP,EIP,ICMP,EICMP,TCP,ETCP,UDP' '-v' '-w')
+#sarDestOptions=( '-d -j LABEL -p' '-b' '-q' '-u ALL' '-r' '-R' '-B' '-S' '-W' '-n DEV,EDEV,NFS,NFSD,SOCK,IP,EIP,ICMP,EICMP,TCP,ETCP,UDP' '-v' '-w')
+# break up network into a separate file for each option
+# not all options available depending on sar version
+sarDestOptions=( '-d -j LABEL -p' '-b' '-q' '-u ALL' '-r' '-R' '-B' '-S' '-W' '-n DEV' '-n EDEV' '-n NFS' '-n NFSD' '-n SOCK' '-n IP' '-n EIP' '-n ICMP' '-n EICMP' '-n TCP' '-n ETCP' '-n UDP' '-v' '-w')
 
-sarDestFiles=( sar-disk.csv sar-io.csv sar-load.csv sar-cpu.csv sar-mem-utilization.csv sar-mem.csv sar-paging.csv sar-swap-utilization.csv sar-swap-stats.csv sar-network.csv sar-kernel-fs.csv sar-context.csv)
+#sarDestFiles=( sar-disk.csv sar-io.csv sar-load.csv sar-cpu.csv sar-mem-utilization.csv sar-mem.csv sar-paging.csv sar-swap-utilization.csv sar-swap-stats.csv sar-network.csv sar-kernel-fs.csv sar-context.csv)
+sarDestFiles=( sar-disk.csv sar-io.csv sar-load.csv sar-cpu.csv sar-mem-utilization.csv sar-mem.csv sar-paging.csv sar-swap-utilization.csv sar-swap-stats.csv sar-net-dev.csv sar-net-ede.csv sar-net-nfs.csv sar-net-nfsd.csv sar-net-sock.csv sar-net-ip.csv sar-net-eip.csv sar-net-icmp.csv sar-net-eicmp.csv sar-net-tcp.csv sar-net-etcp.csv sar-net-udp.csv sar-kernel-fs.csv sar-context.csv)
 
 lastSarOptEl=${#sarDestOptions[@]}
 echo "lastSarOptEl: $lastSarOptEl"
@@ -59,52 +90,51 @@ echo "lastSarOptEl: $lastSarOptEl"
 i=0
 while [[ $i -lt $lastSarOptEl ]]
 do
-	echo "sadf -d -- ${sarDestOptions[$i]}  | head -1 > ${sarDstDir}/${sarDestFiles[$i]} "
-	sadf -d -- ${sarDestOptions[$i]}  | head -1 > ${sarDstDir}/${sarDestFiles[$i]}
+	echo "sadf -d -- ${sarDestOptions[$i]}  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestFiles[$i]} "
+	sadf -d -- ${sarDestOptions[$i]}  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestFiles[$i]}
 	(( i++ ))
 done
 
 #exit
 
-
-# process each file
-currentEl=0
-while [[ $currentEl -lt	 $lastSaDirEl ]]
+#for sarFiles in ${sarSrcDirs[$currentEl]}/sa??
+for sarFiles in $(ls -1dtar ${sarSrcDir}/sa??)
 do
-	echo "Dir: ${sarSrcDirs[$currentEl]}"
-
-	#for sarFiles in ${sarSrcDirs[$currentEl]}/sa??
-	for sarFiles in $(ls -1dtar ${sarSrcDirs[$currentEl]}/sa??)
+	for sadfFile in $sarFiles
 	do
-		sarFiles="${sarMstrDir}/${sarFiles}"
 
-		for sadfFile in $sarFiles
+		#echo CurrentEl: $currentEl
+		# sadf options
+		# -t is for local timestamp
+		# -d : database semi-colon delimited output
+
+		echo Processing File: $sadfFile
+
+		i=0
+		while [[ $i -lt $lastSarOptEl ]]
 		do
+			CMD="sadf -d -- ${sarDestOptions[$i]} $sadfFile | tail -n +2 | $csvConvertCmd  >> ${sarDstDir}/${sarDestFiles[$i]}"
+			echo CMD: $CMD
+			eval $CMD
+			if [[ $? -ne 0 ]]; then
+				echo "#############################################
+				echo "## CMD Failed"
+				echo "## $CMD"
+				echo "#############################################
 
-			#echo CurrentEl: $currentEl
-			# sadf options
-			# -t is for local timestamp
-			# -d : database semi-colon delimited output
-
-			echo Processing File: $sadfFile
-
-			i=0
-			while [[ $i -lt $lastSarOptEl ]]
-			do
-				CMD="sadf -d -- ${sarDestOptions[$i]} $sadfFile | tail -n +2 >> ${sarDstDir}/${sarDestFiles[$i]}"
-				echo CMD: $CMD
-				eval $CMD
-				(( i++ ))
-			done
-
+			fi
+			(( i++ ))
 		done
+
 	done
-
-	(( currentEl++ ))
-
 done
 
+
+echo
 echo Processing complete 
+echo 
+echo files located in $sarDstDir
+echo 
 
 
 # show the files created
