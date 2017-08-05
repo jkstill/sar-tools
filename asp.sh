@@ -90,8 +90,11 @@ echo "lastSarOptEl: $lastSarOptEl"
 i=0
 while [[ $i -lt $lastSarOptEl ]]
 do
-	echo "sadf -d -- ${sarDestOptions[$i]}  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestFiles[$i]} "
-	sadf -d -- ${sarDestOptions[$i]}  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestFiles[$i]}
+	CMD="sadf -d -- ${sarDestOptions[$i]}  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestFiles[$i]} "
+	echo CMD: $CMD
+	eval $CMD
+	#sadf -d -- ${sarDestOptions[$i]}  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestFiles[$i]}
+	echo "################"
 	(( i++ ))
 done
 
