@@ -21,6 +21,10 @@ my @groupingCols=();
 my @aggCols=();
 my @keyCols=();
 my @displayCols=();
+my @filterCols=();
+my @filterVals=();
+my $searchPattern=();
+my $useFilter=0;
 
 GetOptions(\%optctl,
 	"delimiter=s",
@@ -29,6 +33,8 @@ GetOptions(\%optctl,
 	"grouping-cols=s{1,10}" => \@groupingCols,
 	"key-cols=s{1,10}" => \@keyCols,
 	"agg-cols=s{1,10}" => \@aggCols,
+	"filter-cols=s{1,}" => \@filterCols,
+	"filter-vals=s{1,}" => \@filterVals,
 	"debug!",
 	'help|?' => \$help, man => \$man
 ) or pod2usage(2) ;
@@ -40,6 +46,16 @@ my $listAvailableCols = defined($optctl{'list-available-cols'}) ? 1 : 0;
 my $delimiter = defined($optctl{delimiter}) ? $optctl{delimiter} : ',';
 my $outputDelimiter = defined($optctl{'output-delimiter'}) ? $optctl{'output-delimiter'} : ',';
 my $debug = defined($optctl{debug}) ? 1 : 0;
+
+# there should be the same number of filter values as filter columns
+if ( $#filterCols != $#filterVals ) {
+	print "filterCols Count: $#filterCols\n";
+	print Dumper(\@filterCols);
+
+	print "filterVals Count: $#filterVals\n";
+	print Dumper(\@filterVals);
+	die "\nThe number of values for --filter-cols must match the number of values for --filter-vals\n";
+}
 
 my $hdrs=<>;
 chomp $hdrs;
@@ -122,6 +138,27 @@ print "\n\@displayCols after pruning:\n" . Dumper(\@displayCols) if $debug;
 colChk('Grouping Columns',\@groupingCols, \@availGroupingCols);
 colChk('Aggregate Columns',\@aggCols, \@availAggCols);
 colChk('Display Columns',\@displayCols, \@availDisplayCols);
+colChk('Filter Columns',\@filterCols, \@availDisplayCols);
+
+# build the search pattern
+# search pattern: (?=.*(:|\b)jared\b)(?=.*(:|\b)days\b)(?=.*(:|\b)\b)
+$useFilter =  ( $#filterCols >= 0 ) ? 1 : 0;
+
+if ( $useFilter ) {
+
+	my $searchPatternPFX='(?=.*(:|\b)';
+	my $searchPatternSFX='\b)';
+
+	foreach my $term ( @filterVals ) {
+		# change spaces to underscore - this allows using \b word separator in pattern 
+		$term =~ s/\s/_/g;
+		$searchPattern .= "${searchPatternPFX}${term}${searchPatternSFX}{1}";
+	}
+
+	warn "Search Pattern: $searchPattern\n";
+}
+
+
 
 # get list of columns with element position
 my %colPos=();
@@ -154,6 +191,31 @@ while(<>) {
 
 	chomp;
 	my @data=split(/$delimiter/);
+
+	if ($useFilter) {
+		my @filterColPos = map { $colPos{$_} } @filterCols ;
+		my @searchData = @data[ @filterColPos ];
+
+		# die if delimiter eq space, as this just will not work then
+		if ( $delimiter eq ' ') {
+			die "Cannot use Filter Columns if the delimiter is a space\n";
+		}
+
+		# change data spaces to underscore
+		@searchData = map { s/\s/_/g; $_  } @searchData;
+		my $searchData=join(' ',@searchData);
+		
+		if ( $searchData =~ /$searchPattern/ ) {
+			;
+			#print "## Accepting this line\n";
+			#print '## ' . join("$delimiter",@data) . "\n";
+		} else {
+			#print "## Rejecting this line\n";
+			#print '## ' . join("$delimiter",@data) . "\n";
+			next;
+		}
+
+	}
 
 	my @setKeys = map { $data[$colPos{$_}] } @keyCols;
 	my $setKey = join(':',@setKeys);
@@ -355,6 +417,12 @@ B<asm-metrics-aggregtor.pl> is used to aggregate a slice of the data output by B
  2017-07-07 05:20:01 UTC,10629.65,264071.7,198452.41
  2017-07-07 05:30:01 UTC,8601.38,1286509.89,253928.01
  ...
+
+
+ csv-aggregator.pl   --filter-cols DEV   --filter-vals 'DATA..' \
+    --key-cols hostname --key-cols timestamp \
+    --grouping-cols DEV \
+    --agg-cols tps --agg-cols 'rd_sec/s' --agg-cols 'wr_sec/s'  < sar-csv/sar-disk-test.csv > sar-csv/sar-disk-test-filtered.csv
 
 =cut
 

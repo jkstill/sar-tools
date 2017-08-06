@@ -29,7 +29,8 @@ my @searchPattern=('test two', 'test four');
 my $searchPattern=join(',',@searchPattern);
 
 # the data to search was sliced from the data @d
-my @searchData=@data[1,3];
+my @colVals=(1,3);
+my @searchData=@data[@colVals];
 my $searchData=join(',',@searchData);
 
 print '@searchPattern: ' . Dumper(\@searchPattern);
