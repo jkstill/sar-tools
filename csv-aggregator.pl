@@ -379,6 +379,22 @@ B< Available Aggregated Columns:>
 
  Simply the list of all columns
 
+=item B<--filter-cols>
+
+The names of the column(s) used to filter the data.
+
+May be repeated as often as needed
+
+=item B<--filter-vals>
+
+The values to use with column names specified in --filter-cols 
+
+May be repeated as often as needed.
+
+=item B<--list-available-cols>
+
+Read the header line of the input file, display the column names and exit
+
 =item B<--delimiter>
 
 The character used as a delimiter between output fields for the CSV input.
