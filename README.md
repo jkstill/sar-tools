@@ -1,7 +1,7 @@
 
 asp.sh is a shell script that creates CSV files from sar metrics
 
-see <a href=https://github.com/jkstill/dynachart>dynachart</a> for a script to chart data in Excel with Perl.
+see <a href=https://github.com/jkstill/csv-tools/tree/master/dynachart>dynachart</a> for a script to chart data in Excel with Perl.
 
 <pre>
 
