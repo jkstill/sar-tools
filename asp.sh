@@ -10,11 +10,23 @@
 # also tested on Linux Mint
 
 help() {
-	echo
-	echo $0 -s source-dir -d dest-dir
+
+	cat <<-EOF
+
+	  $0 
+	    -s source-dir 
+	    -d dest-dir 
+	    -p pretty print Disk Device Names
+	
+	  Note: only use -p if running on the same system where sar files are generated
+	  otherwise the names printed will be incorrect         	
+	EOF
+	
 	echo
 }
 
+diskPrettyPrintOpts=' -j ID -p '
+sarDiskOpts=''
 
 
 # variables can be set to identify multiple sets of copied sar files
@@ -26,11 +38,12 @@ sarDstDir="sar-csv"
 csvConvertCmd=" sed -e 's/;/,/g' "
 
 
-while getopts s:d:h arg
+while getopts s:d:hp arg
 do
 	case $arg in
 		d) sarDstDir=$OPTARG;;
 		s) sarSrcDir=$OPTARG;;
+		p) sarDiskOpts=$diskPrettyPrintOpts;;
 		h) help; exit 0;;
 		*) help; exit 1;;
 	esac
@@ -73,11 +86,16 @@ echo "lastSaDirEl: $lastSaDirEl"
 # -n network
 # -v kernel filesystem stats
 # -w  context switches and task creation
-#sarDestOptions=( '-d -j LABEL -p' '-b' '-q' '-u ALL' '-r' '-R' '-B' '-S' '-W' '-n DEV,EDEV,NFS,NFSD,SOCK,IP,EIP,ICMP,EICMP,TCP,ETCP,UDP' '-v' '-w')
 # break up network into a separate file for each option
 # not all options available depending on sar version
 # for disk "-d" you may want one of ID, LABEL, PATH or UUID - check the output and the sar docs
-sarDestOptions=( '-d -j ID -p' '-b' '-q' '-u ALL' '-r' '-R' '-B' '-S' '-W' '-n DEV' '-n EDEV' '-n NFS' '-n NFSD' '-n SOCK' '-n IP' '-n EIP' '-n ICMP' '-n EICMP' '-n TCP' '-n ETCP' '-n UDP' '-v' '-w')
+# Update for -d: if performed on a server other than the one where the sar files originated
+#                the LABEL/PATH/UUID/ID will be set from the matching device on the current system
+#                so the default will be to not translate device names
+# The same goes for the -p option - it will take device names from the local system
+# 
+#sarDestOptions=( '-d -j ID -p' '-b' '-q' '-u ALL' '-r' '-R' '-B' '-S' '-W' '-n DEV' '-n EDEV' '-n NFS' '-n NFSD' '-n SOCK' '-n IP' '-n EIP' '-n ICMP' '-n EICMP' '-n TCP' '-n ETCP' '-n UDP' '-v' '-w')
+sarDestOptions=( "-d ${sarDiskOpts} " '-b' '-q' '-u ALL' '-r' '-R' '-B' '-S' '-W' '-n DEV' '-n EDEV' '-n NFS' '-n NFSD' '-n SOCK' '-n IP' '-n EIP' '-n ICMP' '-n EICMP' '-n TCP' '-n ETCP' '-n UDP' '-v' '-w')
 
 #sarDestFiles=( sar-disk.csv sar-io.csv sar-load.csv sar-cpu.csv sar-mem-utilization.csv sar-mem.csv sar-paging.csv sar-swap-utilization.csv sar-swap-stats.csv sar-network.csv sar-kernel-fs.csv sar-context.csv)
 sarDestFiles=( sar-disk.csv sar-io.csv sar-load.csv sar-cpu.csv sar-mem-utilization.csv sar-mem.csv sar-paging.csv sar-swap-utilization.csv sar-swap-stats.csv sar-net-dev.csv sar-net-ede.csv sar-net-nfs.csv sar-net-nfsd.csv sar-net-sock.csv sar-net-ip.csv sar-net-eip.csv sar-net-icmp.csv sar-net-eicmp.csv sar-net-tcp.csv sar-net-etcp.csv sar-net-udp.csv sar-kernel-fs.csv sar-context.csv)
