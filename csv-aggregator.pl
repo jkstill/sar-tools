@@ -275,12 +275,7 @@ while(<>) {
 					#print "$outCol";
 
 					# but, we do want the value of the column if it is a key column (timestamp for instance
-					if ( grep(/^${outCol}$/,@keyCols ) ) {
-						print "$aggs{$aggKey}->{$outCol}";
-					} else {
-						#print "$outCol"; # column name
-						print "$aggOperation"; # whatever aggregation op is being done - sum, min, etc
-					}
+					print "$aggs{$aggKey}->{$outCol}";
 
 				}
 				# and now the calculated columns
