@@ -208,7 +208,7 @@ print join($outputDelimiter,map{ $_ . '_' . uc($aggOperation)} @aggCols) . "\n";
 my $setCount=1;
 
 while(<>) {
-
+	print "line: $_" if $debug;
 	chomp;
 	my @line=split(/$delimiter/);
 
@@ -250,10 +250,11 @@ while(<>) {
 		if ($firstPass) {
 			$firstPass=0;
 		} else {
-			#print "setCount: $setCount\n";
 			if ($debug) {
 				print '=' x 80, "\n";
-				print "Set Key: $prevKey\n";
+				print "setCount: $setCount\n";
+				print "Prev Key: $prevKey\n";
+				print "Set Key: $setKey\n";
 				print '%aggs: ' . Dumper(\%aggs) . "\n";;
 			}
 			my @keys = map{$_} keys %aggs;
@@ -276,10 +277,12 @@ while(<>) {
 
 					# but, we do want the value of the column if it is a key column (timestamp for instance
 					if ( grep(/^${outCol}$/,@keyCols ) ) {
+						print "\noutCol-1: $outCol\n" if $debug;
 						print "$aggs{$aggKey}->{$outCol}";
 					} else {
-						#print "$outCol"; # column name
-						print "$aggOperation"; # whatever aggregation op is being done - sum, min, etc
+						print "\noutCol-2: $outCol\n" if $debug;
+						print "$aggs{$aggKey}->{$outCol}";
+					 #	print "$aggOperation"; # whatever aggregation op is being done - sum, min, etc
 					}
 
 				}
@@ -310,7 +313,13 @@ while(<>) {
 	$prevKey=$setKey;
 
 	my @aggKeyValues;
-	map {push @aggKeyValues, $_} @groupingCols;
+	# I need here the value of the grouping column, not the name
+	
+	#map {push @aggKeyValues, $_} @groupingCols;
+	foreach my $groupCol (@groupingCols) {
+		push @aggKeyValues, $line[$colPos{$groupCol}];
+	}
+
 	print '@aggKeyValues: ' . Dumper(\@aggKeyValues) . "\n" if $debug;
 	my $aggKey=join(':',@aggKeyValues);
 	print "\$aggKey: $aggKey\n" if $debug;
@@ -320,8 +329,8 @@ while(<>) {
 	}
 
 	foreach my $aggCol ( @aggCols ) {
-		#print "aggCol: $aggCol\n";
-		#print "aggKey: $aggKey\n";
+		print "aggKey: $aggKey\n" if $debug;
+		print "   aggCol: $aggCol\n" if $debug;
 
 		# iterate over each agg column in the line of data
 		if ( $aggOperation =~ /^(sum|avg)$/ ) {
