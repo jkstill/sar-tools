@@ -1,4 +1,4 @@
-#!/bin/bash
+#/usr/bin/env bash
 
 # Jared Still - Pythian
 # still@pythian.com jkstill@gmail.com
@@ -8,6 +8,8 @@
 
 # tested on Red Hat Enterprise Linux Server release 6.6 (Santiago)
 # also tested on Linux Mint
+
+set -uo pipefail
 
 help() {
 
@@ -43,7 +45,7 @@ do
 	case $arg in
 		d) sarDstDir=$OPTARG;;
 		s) sarSrcDir=$OPTARG;;
-		p) sarDiskOpts=$diskPrettyPrintOpts;;
+		p) sarDiskOpts="$diskPrettyPrintOpts";;
 		h) help; exit 0;;
 		*) help; exit 1;;
 	esac
@@ -69,8 +71,6 @@ mkdir -p $sarDstDir || {
 
 }
 
-echo "lastSaDirEl: $lastSaDirEl"
-
 
 # sar options
 # -d activity per block device
@@ -94,32 +94,77 @@ echo "lastSaDirEl: $lastSaDirEl"
 #                so the default will be to not translate device names
 # The same goes for the -p option - it will take device names from the local system
 # 
-#sarDestOptions=( '-d -j ID -p' '-b' '-q' '-u ALL' '-r' '-R' '-B' '-S' '-W' '-n DEV' '-n EDEV' '-n NFS' '-n NFSD' '-n SOCK' '-n IP' '-n EIP' '-n ICMP' '-n EICMP' '-n TCP' '-n ETCP' '-n UDP' '-v' '-w')
-sarDestOptions=( "-d ${sarDiskOpts} " '-b' '-q' '-u ALL' '-r' '-R' '-B' '-S' '-W' '-n DEV' '-n EDEV' '-n NFS' '-n NFSD' '-n SOCK' '-n IP' '-n EIP' '-n ICMP' '-n EICMP' '-n TCP' '-n ETCP' '-n UDP' '-v' '-w')
 
-#sarDestFiles=( sar-disk.csv sar-io.csv sar-load.csv sar-cpu.csv sar-mem-utilization.csv sar-mem.csv sar-paging.csv sar-swap-utilization.csv sar-swap-stats.csv sar-network.csv sar-kernel-fs.csv sar-context.csv)
-sarDestFiles=( sar-disk.csv sar-io.csv sar-load.csv sar-cpu.csv sar-mem-utilization.csv sar-mem.csv sar-paging.csv sar-swap-utilization.csv sar-swap-stats.csv sar-net-dev.csv sar-net-ede.csv sar-net-nfs.csv sar-net-nfsd.csv sar-net-sock.csv sar-net-ip.csv sar-net-eip.csv sar-net-icmp.csv sar-net-eicmp.csv sar-net-tcp.csv sar-net-etcp.csv sar-net-udp.csv sar-kernel-fs.csv sar-context.csv)
+declare -A sarDestOptions
 
-lastSarOptEl=${#sarDestOptions[@]}
-echo "lastSarOptEl: $lastSarOptEl"
+#sarDestOptions=( "-d ${sarDiskOpts} " '-b' '-q' '-u ALL' '-r' '-R' '-B' '-S' '-W' '-n DEV' '-n EDEV' '-n NFS' '-n NFSD' '-n SOCK' '-n IP' '-n EIP' '-n ICMP' '-n EICMP' '-n TCP' '-n ETCP' '-n UDP' '-v' '-w')
+
+sarDestOptions["-d ${sarDiskOpts} "]='sar-disk.csv'
+sarDestOptions['-b']='sar-io.csv'
+sarDestOptions['-q']='sar-load.csv'
+sarDestOptions['-u ALL']='sar-cpu.csv'
+sarDestOptions['-r']='sar-mem-utilization.csv'
+sarDestOptions['-R']='sar-mem.csv'
+sarDestOptions['-B']='sar-paging.csv'
+sarDestOptions['-S']='sar-swap-utilization.csv'
+sarDestOptions['-W']='sar-swap-stats.csv'
+sarDestOptions['-n DEV']='sar-net-dev.csv'
+sarDestOptions['-n EDEV']='sar-net-ede.csv'
+sarDestOptions['-n NFS']='sar-net-nfs.csv'
+sarDestOptions['-n NFSD']='sar-net-nfsd.csv'
+sarDestOptions['-n SOCK']='sar-net-sock.csv'
+sarDestOptions['-n IP']='sar-net-ip.csv'
+sarDestOptions['-n EIP']='sar-net-eip.csv'
+sarDestOptions['-n ICMP']='sar-net-icmp.csv'
+sarDestOptions['-n EICMP']='sar-net-eicmp.csv'
+sarDestOptions['-n TCP']='sar-net-tcp.csv'
+sarDestOptions['-n ETCP']='sar-net-etcp.csv'
+sarDestOptions['-n UDP']='sar-net-udp.csv'
+sarDestOptions['-v']='sar-kernel-fs.csv'
+sarDestOptions['-w']='sar-context.csv'
+
 
 #while [[ $i -lt ${#x[@]} ]]; do echo ${x[$i]}; (( i++ )); done;
 
 # initialize files with header row
-i=0
-while [[ $i -lt $lastSarOptEl ]]
+
+for saropt in "${!sarDestOptions[@]}"
 do
-	CMD="sadf -d -- ${sarDestOptions[$i]}  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestFiles[$i]} "
+
+	#echo "saropt: $saropt"
+	#echo "file: ${sarDestOptions["$saropt"]}"
+
+	CMD="sadf -d -- "$saropt"  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestOptions["$saropt"]} "
 	echo CMD: $CMD
+
+	#set -o pipefail
 	eval $CMD
+	rc=$?
+	#set +o pipefail
+
+	#echo "RC: $rc"
+	# the following occurs due to 'set -o pipefail'
+	# 141 == SIGPIPE - SIGPIPE is set by 'head -1' closing the reader while the writer (sadf) is still active
+	# https://stackoverflow.com/questions/19120263/why-exit-code-141-with-grep-q
+	if [[ "$rc" -ne 141 ]]; then
+		echo
+		echo "  !!! This Metric Not Supported !!!"
+		echo '  removing ' ${sarDstDir}/${sarDestOptions["$saropt"]} ' from output'
+		echo "  CMD: $CMD"
+		echo 
+		rm -f  ${sarDstDir}/${sarDestOptions["$saropt"]}
+		unset sarDestOptions["$saropt"]
+	fi
 	#sadf -d -- ${sarDestOptions[$i]}  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestFiles[$i]}
 	echo "################"
-	(( i++ ))
 done
 
 #exit
 
+#: <<'COMMENT'
+
 #for sarFiles in ${sarSrcDirs[$currentEl]}/sa??
+set +u
 for sarFiles in $(ls -1dtar ${sarSrcDir}/sa??)
 do
 	for sadfFile in $sarFiles
@@ -132,10 +177,9 @@ do
 
 		echo Processing File: $sadfFile
 
-		i=0
-		while [[ $i -lt $lastSarOptEl ]]
+		for saropt in "${!sarDestOptions[@]}"
 		do
-			CMD="sadf -d -- ${sarDestOptions[$i]} $sadfFile | tail -n +2 | $csvConvertCmd  >> ${sarDstDir}/${sarDestFiles[$i]}"
+			CMD="sadf -d -- $saropt $sadfFile | tail -n +2 | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
 			echo CMD: $CMD
 			eval $CMD
 			if [[ $? -ne 0 ]]; then
@@ -167,4 +211,5 @@ do
 	(( i++ ))
 done
 
+#COMMENT
 
