@@ -37,6 +37,30 @@ if ( ! -d $destDir ) {
 
 print "Dest Dir: $destDir\n";
 
+# make sure sadf and sar are both available
+my @which=();
+foreach my $cmd2chk ( qw{sadf sar} ) {
+	my $cmdStatus = system("which $cmd2chk >/dev/null");
+	#print "fpCmd: $fpCmd\n";
+	if ($cmdStatus == 0) { 
+		push @which,$cmd2chk;
+	} else {
+		die "cmd '$cmd2chk' not found\n";
+	}
+}
+
+# now make sure they work
+#push @which,'bogus';
+foreach my $cmd2chk ( @which ) {
+	my $cmdResults = qx{$cmd2chk -help 2>&1};
+	if (! $cmdResults ) {
+		die "Error running '$cmd2chk'\n";
+	}
+
+}
+
+#exit;
+
 =head1 sar options
 
  These options work for Linux 3.8+ kernels, and possibly earlier 3.x versions
@@ -157,6 +181,116 @@ foreach my $saropt ( keys %sarDestOptions ) {
 
 #for sarFiles in $(ls -1dtar ${sarSrcDir}/sa??)
 
+=head1 Append SAR data to the newly created files
+
+ Loop through the list of commands
+   process each file in the list, using the current command
+
+=cut
+
+my @saFiles = getSAFiles($sourceDir);
+#print "sa files:\n" . join("\n", @saFiles) . "\n";
+
+foreach my $saropt ( keys %sarDestOptions ) {
+
+	print "working on 'sar $saropt ${destDir}/$sarDestOptions{$saropt}'\n";
+	my $CMD=qq{sadf -d -- $saropt };
+
+	my $csvFile = "$destDir/$sarDestOptions{$saropt}";
+	my $hndl = IO::File->new(">> $csvFile") or die "could not open $csvFile for writing\n - $!\n";
+
+	foreach my $saFile ( @saFiles ) {
+
+		print '.';
+
+		my $CMD="sadf -d -- $saropt $saFile " ; # | >> ${destDir}/$sarDestOptions{$saropt} ";
+		my @results  = qx($CMD  2>&1 );
+
+		my $hdr = shift @results; # just throwing away the header here
+
+		my @output = map { my $a = $_; $a =~ s/;/,/g; $a } @results;
+		print $hndl @output;
+	}
+
+	print "\n";
+
+	close $hndl;
+
+}
+
+=head1 an end of main marker I can see in the editor
+ ###############################################################
+ ###############################################################
+ ###############################################################
+=cut
+
+sub getSAFiles {
+	my ($sourceDir) = @_;
+
+	# get the file list
+	opendir(my $dh, $sourceDir) || die "Can't opendir $sourceDir - $!\n";
+	my @saFiles = grep(/^sa[0-9]{2}/, readdir($dh));
+	closedir $dh;
+
+	if ( ! @saFiles ) {
+		die "no sa files found in directory $sourceDir\n";
+	}
+
+	# now get them in date order
+	# you did copy them with 'cp -p' or similar, right?
+	my %workFiles;
+	foreach my $saFile ( @saFiles ) {
+
+		my $file2chk = "$sourceDir/$saFile";
+
+		# stat returns the modified time in seconds since the epoch
+		# just sort on that
+		# this is pretty much guaranteed to fail if the timestamps on
+		# the sa files were not preserved. 
+		# such as with 'cp ' without the -p option 
+		my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,
+			$atime,$mtime,$ctime,$blksize,$blocks)
+			= stat($file2chk);
+
+			#print "file: $file2chk\n";
+			#print "  mtime: $mtime\n\n";
+
+		if ( ! exists $workFiles{$mtime} ) {
+			$workFiles{$mtime} = $file2chk;
+		} else {
+			# collision on mtime
+			# message, and try up to 5 times add 1 second
+			# still, no guarantee the order will be correct in the finished output
+			# why 5?  arbitrary, but, this may have already been done with other files as well
+			# so there could already have been some files where the timestamp was adjusted
+			warn "Collision!  2 filesnames have the same timestamp\n";
+			warn "Making up to 5 attempts to add 1 second to the timestamp and continue\n";
+
+			foreach my $i ( 1..5 ) {
+
+				if ( ! exists $workFiles{$mtime+$i} ) {
+					$workFiles{$mtime+$i} = $file2chk;
+					last;
+				}
+
+				if ( $i == 5 ){ die "timestamp collision on $file2chk\n"; }
+
+			}
+		}
+	}
+
+	my @saFilesSorted;
+	foreach my $epochTime (  sort {$a <=> $b} keys %workFiles ) {
+		#print "file: $workFiles{$epochTime}\n";
+		push @saFilesSorted, $workFiles{$epochTime};
+	}
+
+	return @saFilesSorted;
+
+}
+
+
+
 
 sub pathErrors {
 	my ($path, $pathErrAry)  = @_;
@@ -207,92 +341,5 @@ usage: $basename
    exit $exitVal;
 };
 
-__END__
 
-
-
-for saropt in "${!sarDestOptions[@]}"
-do
-
-	#echo "saropt: $saropt"
-	#echo "file: ${sarDestOptions["$saropt"]}"
-
-	CMD="sadf -d -- "$saropt"  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestOptions["$saropt"]} "
-	echo CMD: $CMD
-
-	#set -o pipefail
-	eval $CMD
-	rc=$?
-	#set +o pipefail
-
-	#echo "RC: $rc"
-	# the following occurs due to 'set -o pipefail'
-	# 141 == SIGPIPE - SIGPIPE is set by 'head -1' closing the reader while the writer (sadf) is still active
-	# https://stackoverflow.com/questions/19120263/why-exit-code-141-with-grep-q
-	if [[ "$rc" -ne 141 ]]; then
-		echo
-		echo "  !!! This Metric Not Supported !!!"
-		echo '  removing ' ${sarDstDir}/${sarDestOptions["$saropt"]} ' from output'
-		echo "  CMD: $CMD"
-		echo 
-		rm -f  ${sarDstDir}/${sarDestOptions["$saropt"]}
-		unset sarDestOptions["$saropt"]
-	fi
-	#sadf -d -- ${sarDestOptions[$i]}  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestFiles[$i]}
-	echo "################"
-done
-
-#exit
-
-#: <<'COMMENT'
-
-#for sarFiles in ${sarSrcDirs[$currentEl]}/sa??
-set +u
-for sarFiles in $(ls -1dtar ${sarSrcDir}/sa??)
-do
-	for sadfFile in $sarFiles
-	do
-
-		#echo CurrentEl: $currentEl
-		# sadf options
-		# -t is for local timestamp
-		# -d : database semi-colon delimited output
-
-		echo Processing File: $sadfFile
-
-		for saropt in "${!sarDestOptions[@]}"
-		do
-			CMD="sadf -d -- $saropt $sadfFile | tail -n +2 | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
-			echo CMD: $CMD
-			eval $CMD
-			if [[ $? -ne 0 ]]; then
-				echo "#############################################
-				echo "## CMD Failed"
-				echo "## $CMD"
-				echo "#############################################
-
-			fi
-			(( i++ ))
-		done
-
-	done
-done
-
-
-echo
-echo Processing complete 
-echo 
-echo files located in $sarDstDir
-echo 
-
-
-# show the files created
-i=0
-while [[ $i -lt $lastSarOptEl ]]
-do
-	ls -ld ${sarDstDir}/${sarDestFiles[$i]} 
-	(( i++ ))
-done
-
-#COMMENT
 
