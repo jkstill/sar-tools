@@ -1,4 +1,4 @@
-#/usr/bin/env bash
+#!/usr/bin/env bash
 
 # Jared Still - Pythian
 # still@pythian.com jkstill@gmail.com
