@@ -1,5 +1,22 @@
 #!/usr/bin/env perl
 
+=head1 asp.pl
+
+ Another Sar Processor
+
+ The sadf utility is used to dump the sa data files  to CSV output.
+ (sar uses the sadf utility to read the files)
+
+ all /var/log/sa/sa?? files are processed in timestamp order (perldoc -f stat)
+
+ the output is a CSV file that may be directly loaded into a spreadsheet
+
+ Jared Still
+ 2021-01-09 
+ jkstill@gmail.com
+
+=cut
+
 # Copied the asp.sh bash script into this perl script, just to get the logic
 
 use warnings;
