@@ -46,8 +46,6 @@ EOF
 }
 
 
-echo '$#: ' "$#"
-
 [[ "$#" -lt 3 ]] && {
 	usage
 	exit 1

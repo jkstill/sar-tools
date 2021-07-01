@@ -207,6 +207,23 @@ working on 'sar -W sar-csv/sar-swap-stats.csv'
 ```
 
 
+## Auxilary scripts
+
+Following a some useful helper scripts.
+
+If the `-p` option of `asp.sh` is used to match disk devices to logical names, these scripts wlil not be useful.
+
+The `-p` option requires that `asp.sh` be run on the originating server.
+
+### get-sar.sh
+
+Copies sar files from all RAC nodes
+
+### asp-all.sh
+
+Processes the CSV files for all sar files collected.
+
+
 ## Charting
 
 The charting tools are found at [dynachart](https://github.com/jkstill/csv-tools/tree/master/dynachart)
