@@ -338,11 +338,15 @@ cluster01/
 
 ## Rising Rate Detector
 
-These scripts are from  [csv-tools](https://github.com/jkstill/csv-tools) 
+These scripts are from [csv-tools](https://github.com/jkstill/csv-tools) 
 
-The following files are required from that repo:
+The following files are required from [csv-tools](https://github.com/jkstill/csv-tools)
 
-*
+* csvhdr.sh
+* flatten.py
+* outlier-remove.py
+* rising-rate-detector.py
+* rising-rate-detector.sh
 
 The shell script `rising-rate-detector.sh` calls `rising-rate-detector.py` for each of the CSV files.
 
