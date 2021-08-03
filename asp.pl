@@ -33,12 +33,16 @@ my ($help) = (0);
 my ($sourceDir, $destDir, $prettyPrint ) = ('','',0);
 my $sarDiskOpts=' ';
 my $verbose=0;
+my $getDiskMetrics=1;
+my $dryRun=0;
 
 Getopt::Long::GetOptions(
 	\%optctl,
 	"s|source-dir=s"		=> \$sourceDir,
 	"d|dest-dir=s"		=> \$destDir,
 	"p|pretty-print!"	=> \$prettyPrint,
+	"n|disk-metrics!"	=> \$getDiskMetrics,
+	"y|dry-run!"	=> \$dryRun,
 	"z|h|help"			=> \$help
 );
 
@@ -143,6 +147,15 @@ my %sarDestOptions = (
 	'-w'						=> 'sar-context.csv',
 );
 
+print "getDiskMetrics: $getDiskMetrics\n";
+
+if (! $getDiskMetrics ) {
+	#print "Deleting Disk Metrics\n";
+	delete $sarDestOptions{"-d ${sarDiskOpts} "};
+}
+
+#print '%sarDestOptions: ' . Dumper(\%sarDestOptions);
+
 # this would be more robust with IPC::Open3
 # for now, just using qx{}
 
@@ -181,15 +194,17 @@ foreach my $saropt ( keys %sarDestOptions ) {
 
 	($header = $results) =~ s/;/,/go;
 	$header =~ s/^#\s//;
-	if ($verbose) {
+	if ($verbose or $dryRun) {
 		print " results: $results\n";
 		print " header: $header\n";
 		print "=" x 80 . "\n";
 	}
 
-	my $file = "$destDir/$sarDestOptions{$saropt}";
-	my $hndl = IO::File->new("> $file") or die "could not create $file\n - $!\n";
-	print $hndl "$header";
+	if (! $dryRun ) {
+		my $file = "$destDir/$sarDestOptions{$saropt}";
+		my $hndl = IO::File->new("> $file") or die "could not create $file\n - $!\n";
+		print $hndl "$header";
+	}
 
 }
 
@@ -214,24 +229,37 @@ foreach my $saropt ( keys %sarDestOptions ) {
 	my $CMD=qq{sadf -d -- $saropt };
 
 	my $csvFile = "$destDir/$sarDestOptions{$saropt}";
-	my $hndl = IO::File->new(">> $csvFile") or die "could not open $csvFile for writing\n - $!\n";
+	my $hndl;
+	if (! $dryRun ) {
+		$hndl = IO::File->new(">> $csvFile") or die "could not open $csvFile for writing\n - $!\n";
+	}
 
 	foreach my $saFile ( @saFiles ) {
 
-		print '.';
 
 		my $CMD="sadf -d -- $saropt $saFile " ; # | >> ${destDir}/$sarDestOptions{$saropt} ";
-		my @results  = qx($CMD  2>&1 );
 
-		my $hdr = shift @results; # just throwing away the header here
+		if ($verbose or $dryRun) {
+			print "CMD: $CMD\n";
+		} else {
+			print '.';
+		}
 
-		my @output = map { my $a = $_; $a =~ s/;/,/g; $a } @results;
-		print $hndl @output;
+		if (! $dryRun ) {
+			my @results  = qx($CMD  2>&1 );
+
+			my $hdr = shift @results; # just throwing away the header here
+
+			my @output = map { my $a = $_; $a =~ s/;/,/g; $a } @results;
+			print $hndl @output;
+		}
 	}
 
 	print "\n";
 
-	close $hndl;
+	if (! $dryRun ) {
+		close $hndl;
+	}
 
 }
 
@@ -348,6 +376,12 @@ usage: $basename
   --pretty-print  pretty print Disk Device Names
                   only use -p if running on the same system where sar files are generated
                   otherwise the names printed will be incorrect         	
+
+  --disk-metrics     get disk-metrics 
+  --no-disk-metrics  do not process disk-metrics 
+
+  -y 
+  --dry-run       do not process the sar files or generate output
 
   example:
 
