@@ -82,6 +82,8 @@ if [[ -z $dynaChart ]]; then
 fi
 
 
+#:<<'COMMENT'
+
 # default of 1 chart per metric
 #echo working on sar-disk-default-cleaned.xlsx
 #dynachart.pl --spreadsheet-file ${destDir}/sar-disk-default-cleaned.xlsx --worksheet-col DEV --category-col 'timestamp' --chart-cols 'rd_sec/s' --chart-cols 'wr_sec/s' < sar-disk-cleaned.csv
@@ -89,8 +91,6 @@ fi
 # combine metrics into one chart
 #echo working on sar-disk-combined-cleaned.xlsx
 #dynachart.pl --spreadsheet-file ${destDir}/sar-disk-combined-cleaned.xlsx --combined-chart --worksheet-col DEV --category-col 'timestamp' --chart-cols 'rd_sec/s' --chart-cols 'wr_sec/s' < sar-disk-cleaned.csv
-
-:<<'COMMENT'
 
 echo working on sar-network-device-cleaned.xlsx
 dynachart.pl --spreadsheet-file ${destDir}/sar-network-device-cleaned.xlsx --combined-chart --worksheet-col IFACE --category-col 'timestamp' --chart-cols 'rxkB/s' --chart-cols 'txkB/s' < "$srcDir"/sar-net-dev-cleaned.csv
@@ -149,7 +149,7 @@ dynachart.pl --spreadsheet-file ${destDir}/sar-swap-rate-cleaned.xlsx --combined
 echo working on sar-swap-utilization-cleaned.xlsx
 dynachart.pl --spreadsheet-file ${destDir}/sar-swap-utilization-cleaned.xlsx --combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'kbswpfree' --chart-cols 'kbswpused' --chart-cols '%swpused' --chart-cols 'kbswpcad' --chart-cols '%swpcad' < "$srcDir"/sar-swap-utilization-cleaned.csv
 
-COMMENT
+#COMMENT
 
 echo working on sar-kernel-fs-cleaned.csv
 dynachart.pl --spreadsheet-file ${destDir}/sar-kernel-fs-cleaned.xlsx --worksheet-col hostname --category-col 'timestamp' --chart-cols 'dentunusd' --chart-cols 'file-nr' --chart-cols 'inode-nr' --chart-cols 'pty-nr' < "$srcDir"/sar-kernel-fs-cleaned.csv
