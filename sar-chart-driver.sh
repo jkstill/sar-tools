@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 
-homeDir=/mnt/zips/tmp/pythian/opentext/sow7/sar
+# start the script from its directory
+homeDir=$(pwd)
 
 # location of scripts and python scripts, outlier-remove.py and flatten.py
-binDir=/mnt/zips/tmp/pythian/opentext/sow7/sar
+# find the python scripts in https://github.com/jkstill/csv-tools
+
+binDir=$homeDir
 export PATH="$binDir":$PATH
 
 :<<'COMMENT'
@@ -32,10 +35,14 @@ do
 		cd $server
 		# run the data cleanup for extra of charts
 		
-		../../sar-cleaned.sh
+		# uncomment only if you have the python scripts
+		#../../sar-cleaned.sh
 
 		../../sar-chart.sh xlsx
-		../../sar-chart-cleaned.sh xlsx-cleaned
+
+		# uncomment only if you have the python scripts
+		#../../sar-chart-cleaned.sh xlsx-cleaned
+
 		cd $homeDir
 	done
 	echo "##############################################"
