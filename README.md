@@ -223,6 +223,11 @@ Copies sar files from all RAC nodes
 
 Processes the CSV files for all sar files collected.
 
+## sar-map-disks.sh
+
+Creates a sed command file that can be used to replace the devmajor-minor values in the sar output with ASMLib disk names
+
+It is assumed that disks are partitioned.  If not, the script will require some adjustment
 
 ## Charting
 
