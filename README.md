@@ -1,4 +1,4 @@
-Another Shell Processor
+Another SAR Processor
 =======================
 
 asp.sh is a shell script that creates CSV files from sar metrics
