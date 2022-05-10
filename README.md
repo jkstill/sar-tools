@@ -41,7 +41,7 @@ If you copy the files from another location, be sure to preserve the timestamps.
 
 Just specify the source and destination directories, and if pretty printing should be used on disk devices.
 
-eg. `./asp.sh -s /var/log/sa -d ./csv -p`
+eg. `./asp.sh -d ./csv -p`
 
 ## asp.pl
 
@@ -171,6 +171,8 @@ files located in sar-csv
 use the -d and -s options to set the destination and source directories.
 
 ## asp.pl
+
+Note: asp.sh currently does a better job of locating sar files, and setting version dependencies
 
 The `asp.pl` script is just a little different in console output, but the same files are created as with `asp.sh`.
 
