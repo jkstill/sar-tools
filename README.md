@@ -398,6 +398,12 @@ The avg values shown do not represent the values from the sar data. Those are ju
 
 ```
 
+## References
+
+[sar man page](https://man7.org/linux/man-pages/man1/sar.1.html)
+[sar/sysstat home](http://sebastien.godard.pagesperso-orange.fr/)
+
+
 
 
 
