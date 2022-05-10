@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
 
-# Jared Still - Pythian
-# still@pythian.com jkstill@gmail.com
+# Jared Still
+# jkstill@gmail.com
 # 2017-07-20
 
 # asp - another sar processor
 
-# tested on Red Hat Enterprise Linux Server release 6.6 (Santiago)
+# tested on:
+# RedHat/Oracle  5,6,7,8
 # also tested on Linux Mint
 
-set -uo pipefail
+# do not use pipefail
+# it causes SIGPIPE when uncompressing in a pipeline
+set -u #o pipefail
 
 help() {
 
 	cat <<-EOF
 
 	  $0 
-       -s source-dir 
        -d dest-dir 
        -p pretty print Disk Device Names
        -n no disk metrics
@@ -29,6 +31,106 @@ help() {
 	echo
 }
 
+# returns 'releaseType:version:sar data dir:sadc version'
+
+getLinuxVariantInfo () {
+	
+	local variant
+	local version
+	local sysstatVersion
+	local releaseFile
+	local oldSchool=N
+	local sysstatFile
+
+	# sysstat 10 and less use -R for memory
+	# sysstat 11+ use -r for memory
+
+	if [[ -r /etc/os-release ]]; then
+		releaseFile=/etc/os-release
+		variant=$(grep -E '^ID=' /etc/os-release| tr -d '[ \"]' | cut -f1 -d\. | cut -f2 -d=)
+	elif [[ -r /etc/oracle-release ]]; then # old oracle - LT version 6 
+		releaseFile=/etc/oracle-release
+		variant='oracle'
+		oldSchool=Y
+		sysstatFile=/etc/sysconfig/sysstat
+	elif [[ -r /etc/redhat-release ]]; then # old redhat - LT version 6 
+		releaseFile=/etc/redhat-release
+		variant='redhat'
+		oldSchool=Y
+		sysstatFile=/etc/sysconfig/sysstat
+	else 
+		echo 'Cannot find a suitable release file to determine Linux variant'
+		return 1
+	fi
+
+	[[ -r $releaseFile ]] || { echo "failed to get release file in getLinuxVariantInfo"; exit 1; }
+
+	# get major version number
+	if [[ $oldSchool == 'Y' ]]; then
+		version=$(grep -v '^\s*#' $releaseFile | head -1 | awk '{ print $NF }')
+	else
+		#version=$(grep -E '^VERSION=' /etc/os-release| tr -d \" | cut -f1 -d\. | cut -f2 -d=)
+		# tr stripping quotes and alpha - ubuntu has alpha characters after the version
+		version=$(grep -E '^VERSION=' /etc/os-release| tr -d ' \"[[:alpha:]()]+' | cut -f1 -d\. | cut -f2 -d=)
+	fi
+
+	[[ -z $version ]] && { echo "failed to get version in getLinuxVariantInfo"; exit 1; }
+	[[ -z $variant ]] && { echo "failed to get variant in getLinuxVariantInfo"; exit 1; }
+
+   # variants
+	# rhel: redhat
+	# fedora: redhat
+	# ol: oracle 
+	# linuxmint: debian
+	# ubuntu: debian
+
+	local releaseType
+	if [[ $variant == 'rhel' ]]; then releaseType='redhat'
+	elif [[ $variant == 'fedora' ]]; then releaseType='redhat'
+	elif [[ $variant == 'ol' ]]; then releaseType='redhat'
+	elif [[ $variant == 'oracle' ]]; then releaseType='redhat'
+	elif [[ $variant == 'linuxmint' ]]; then releaseType='debian'
+	elif [[ $variant == 'ubuntu' ]]; then releaseType='debian'
+	elif [[ $variant == 'debian' ]]; then releaseType='debian'
+	else releaseType='unknown'
+	fi
+
+	#echo "releaseType: $releaseType" >&2
+
+	# 64 bit linux is assumed
+	# old versions of sadc send version to stderr
+	if [[ $releaseType == 'redhat' ]]; then
+		sysstatVersion=$(/usr/lib64/sa/sadc -V 2>&1 | head -1 | awk '{print $NF }' | cut -d\. -f1)
+		sysstatFile=/etc/sysconfig/sysstat
+	else
+		sysstatVersion=$(/usr/lib/sysstat/sadc -V 2>&1 | head -1 | awk '{print $NF }' | cut -d\. -f1)
+		sysstatFile=/etc/sysstat/sysstat
+	fi
+
+	[[ -r $sysstatFile ]] || { echo "failed to read '$sysstatFile' in getLinuxVariantInfo"; exit 1; }
+
+	local sarDir sarDirParm
+	sarDirParm=$(grep '^SA_DIR=' $releaseFile )
+
+	if [[ -z "$sarDirParm" ]]; then
+		if [[ $releaseType == 'debian' ]]; then
+			sarDir=/var/log/sysstat
+		elif [[ $releaseType == 'redhat' ]]; then
+			sarDir=/var/log/sa
+		else
+			sarDir=/var/log/sa # hope for the best
+		fi
+	else
+		sarDir=$(echo $sarDirParm | cut -f2 -d= | tr -d '[ "]' )
+	fi
+
+	[ -x $sarDir -a -r $sarDir ] || { echo "sa log directory not found or readable"; exit 1; }
+
+	echo "$releaseType:$version:$sarDir:$sysstatVersion"
+	return 0
+
+}
+
 diskPrettyPrintOpts=' -j ID -p '
 sarDiskOpts=''
 getDiskMetrics='Y'
@@ -36,19 +138,15 @@ dryRun='N'
 
 
 # variables can be set to identify multiple sets of copied sar files
-sarSrcDir='/var/log/sa' # RedHat, CentOS ...
-#sarSrcDir='/var/log/sysstat' # Debian, Ubuntu ...
-
 sarDstDir="sar-csv"
 
 csvConvertCmd=" sed -e 's/;/,/g' "
 
 
-while getopts s:d:hpny arg
+while getopts d:hpny arg
 do
 	case $arg in
 		d) sarDstDir=$OPTARG;;
-		s) sarSrcDir=$OPTARG;;
 		p) sarDiskOpts="$diskPrettyPrintOpts";;
 		n) getDiskMetrics='N';;
 		y) dryRun='Y';;
@@ -60,7 +158,6 @@ done
 
 cat << EOF
 
-Source: $sarSrcDir
   Dest: $sarDstDir
 
 EOF
@@ -101,6 +198,28 @@ mkdir -p $sarDstDir || {
 # The same goes for the -p option - it will take device names from the local system
 # 
 
+
+# though the sar files may be in 1 of 3 slightly different directory structured
+# depending on version and options, we can get the most recent 30 days with find | ls
+# regardless of configuration
+# it is just necessary to know where the sa files are stored
+
+
+declare -A linuxInfo
+
+while IFS=: read linuxType version sarDirectory sysstatVersion
+do
+	linuxInfo['release']=$linuxType
+	linuxInfo['version']=$version
+	linuxInfo['directory']=$sarDirectory
+	linuxInfo['sysstat-version']=$sysstatVersion
+done < <(getLinuxVariantInfo)
+
+echo release: ${linuxInfo[release]}
+echo version: ${linuxInfo[version]}
+echo directory: ${linuxInfo[directory]}
+echo sysstat version: ${linuxInfo['sysstat-version']}
+
 declare -A sarDestOptions
 
 #sarDestOptions=( "-d ${sarDiskOpts} " '-b' '-q' '-u ALL' '-r' '-R' '-B' '-S' '-W' '-n DEV' '-n EDEV' '-n NFS' '-n NFSD' '-n SOCK' '-n IP' '-n EIP' '-n ICMP' '-n EICMP' '-n TCP' '-n ETCP' '-n UDP' '-v' '-w')
@@ -112,8 +231,21 @@ declare -A sarDestOptions
 sarDestOptions['-b']='sar-io.csv'
 sarDestOptions['-q']='sar-load.csv'
 sarDestOptions['-u ALL']='sar-cpu.csv'
-sarDestOptions['-r']='sar-mem-utilization.csv'
-sarDestOptions['-R']='sar-mem.csv'
+
+# sysstrat 10-
+# -r memory utilization
+# -R memory
+# sysstat 11+
+# '-r ALL' memory utilization - includes the -R from older versions
+# there is no -R in 11+
+
+if [[ ${linuxInfo['sysstat-version']} -ge 11 ]]; then
+	sarDestOptions['-r ALL']='sar-mem.csv'
+else
+	sarDestOptions['-R']='sar-mem.csv'
+	sarDestOptions['-r']='sar-mem-utilization.csv'
+fi
+
 sarDestOptions['-B']='sar-paging.csv'
 sarDestOptions['-S']='sar-swap-utilization.csv'
 sarDestOptions['-W']='sar-swap-stats.csv'
@@ -133,8 +265,18 @@ sarDestOptions['-v']='sar-kernel-fs.csv'
 sarDestOptions['-w']='sar-context.csv'
 
 
-#while [[ $i -lt ${#x[@]} ]]; do echo ${x[$i]}; (( i++ )); done;
 
+declare unzipOptions=' --decompress --stdout '
+
+# [extension]=zipper
+declare -A zippers=(
+	[bz2]=bzip2
+	[gz]=gzip
+	[xz]=xz
+)
+
+
+#while [[ $i -lt ${#x[@]} ]]; do echo ${x[$i]}; (( i++ )); done;
 # initialize files with header row
 
 for saropt in "${!sarDestOptions[@]}"
@@ -179,7 +321,9 @@ done
 
 #for sarFiles in ${sarSrcDirs[$currentEl]}/sa??
 set +u
-for sarFiles in $(ls -1dtar ${sarSrcDir}/sa??)
+# find and ls used to get the (up to) 30 most recent sar files
+# maybe find would be better
+for sarFiles in $(find ${linuxInfo['directory']} -type f \( -name "sa??" -o -name "sa??.*" -o -name "sa????????" -o -name "sa????????.*" \) | xargs ls -1dtar | tail -30)
 do
 	for sadfFile in $sarFiles
 	do
@@ -193,16 +337,40 @@ do
 
 		for saropt in "${!sarDestOptions[@]}"
 		do
-			CMD="sadf -d -- $saropt $sadfFile | tail -n +2 | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
-			echo CMD: $CMD
+			# is this a plain sar datafile, or a compressed file?
+			# if compressed, which compresssion
+			# can check with file or the extension
+			# using both I think
+			declare sadfFileType CMD
+			sadfFileType=$(file $sadfFile |  awk '{ print $2 }' | tr '[A-Z]' '[a-z]' )
+
+			echo $sadfFile type is $sadfFileType >&2
+
+			if [[ $sadfFileType == 'data' ]]; then
+
+				CMD="sadf -d -- $saropt $sadfFile | tail -n +2 | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
+			else
+				# get the file extension - it should match the compression program
+				declare zipperExe
+				zipperExe=${zippers[$(echo $sadfFile | awk -F\. '{ print $NF }' )]}
+				[[ -x $(which $zipperExe) ]] || { echo "skipping file $sadfFile - zip program '$zipperExe' not found" >&2; continue; }
+
+				# will return error 13 pipefail (RC is 141, subtract 128) if 'set -o pipefail'
+				CMD="$zipperExe $unzipOptions $sadfFile | sadf -d -- $saropt | tail -n +2  | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
+
+			fi
+
+			echo DCMD: $CMD
 
 			if [ "$dryRun" == 'N' ]; then
 				eval $CMD
-				if [[ $? -ne 0 ]]; then
-					echo "#############################################
+				declare RC=$?
+				if [[ $RC -ne 0 ]]; then
+					echo "#############################################"
 					echo "## CMD Failed"
 					echo "## $CMD"
-					echo "#############################################
+					echo "## RC: $RC"
+					echo "#############################################"
 	
 				fi
 			fi
