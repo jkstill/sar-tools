@@ -329,6 +329,7 @@ By using some of the tools from the [csv-tools](https://github.com/jkstill/csv-t
 
 The `sar-chart-driver.sh` script calls the following scripts, and runs each on all CSV files in the directory structure
 
+* restart-cleanup.sh
 * sar-cleaned.sh
 * sar-chart.sh
 * sar-chart-cleaned.sh

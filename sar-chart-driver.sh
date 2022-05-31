@@ -33,8 +33,10 @@ do
 		echo "   ============================================"
 		echo "   server: $server"
 		cd $server
-		# run the data cleanup for extra of charts
-		
+
+		# remove LINUX-RESTART messages
+   	../../restart-cleanup.sh
+
 		# uncomment only if you have the python scripts
 		#../../sar-cleaned.sh
 
