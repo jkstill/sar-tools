@@ -246,6 +246,7 @@ else
 	sarDestOptions['-r']='sar-mem-utilization.csv'
 fi
 
+sarDestOptions['-H']='sar-hugepages-utilization.csv'
 sarDestOptions['-B']='sar-paging.csv'
 sarDestOptions['-S']='sar-swap-utilization.csv'
 sarDestOptions['-W']='sar-swap-stats.csv'
@@ -285,7 +286,8 @@ do
 	#echo "saropt: $saropt"
 	#echo "file: ${sarDestOptions["$saropt"]}"
 
-	CMD="sadf -d -- "$saropt"  | head -1 | $csvConvertCmd "
+	# extra sed to remove the '^# ' in the header line
+	CMD="sadf -d -- "$saropt"  | head -1 | sed -e 's/^# //' | $csvConvertCmd "
 
 	if [ "$dryRun" == 'N' ]; then
 		CMD="$CMD  > ${sarDstDir}/${sarDestOptions["$saropt"]} "

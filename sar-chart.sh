@@ -137,6 +137,11 @@ dynachart.pl --spreadsheet-file ${destDir}/sar-load-runq.xlsx --combined-chart -
 echo working on sar-memory.xlsx
 dynachart.pl --spreadsheet-file ${destDir}/sar-memory.xlsx --combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'frmpg/s' --chart-cols  'bufpg/s' < "$srcDir"/sar-mem.csv
 
+echo working on sar-mem-utilization.xlsx
+dynachart.pl --spreadsheet-file ${destDir}/sar-mem-utilization.xlsx --worksheet-col hostname --category-col 'timestamp' --chart-cols '%commit' --chart-cols 'kbcommit' --chart-cols 'kbmemfree' --chart-cols  'kbmemused' --chart-cols 'kbcached' < "$srcDir"/sar-mem-utilization.csv
+
+echo working on sar-hugepages-utilization.xlsx
+dynachart.pl --spreadsheet-file ${destDir}/sar-hugepages-utilization.xlsx --worksheet-col hostname --category-col 'timestamp' --chart-cols 'kbhugfree' --chart-cols 'kbhugused' --chart-cols '%hugused'  < "$srcDir"/sar-hugepages-utilization.csv
 
 echo working on sar-paging-rate.xlsx
 dynachart.pl --spreadsheet-file ${destDir}/sar-paging-rate.xlsx --combined-chart --worksheet-col hostname --category-col 'timestamp'  --chart-cols 'pgpgin/s' --chart-cols  'pgpgout/s' < "$srcDir"/sar-paging.csv
