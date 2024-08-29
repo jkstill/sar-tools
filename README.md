@@ -217,6 +217,14 @@ If the `-p` option of `asp.sh` is used to match disk devices to logical names, t
 
 The `-p` option requires that `asp.sh` be run on the originating server.
 
+### fix-csv.sh
+
+When a server is restarted, the sar file will have a 'RESTART' line in it, along with an additional header line.
+
+This script removes all 'RESTART' lines from the CSV files, and ensures there is only one header line.
+
+Files are re-written in place, and are not backed up.
+
 ### get-sar.sh
 
 Copies sar files from all RAC nodes
