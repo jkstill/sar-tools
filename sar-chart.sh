@@ -22,17 +22,41 @@ usage() {
 
 }
 
+cleanedFilePart='-cleaned'
+replaceFilePart=''
 
-while getopts h arg
+
+while getopts ch arg
 do
 	case $arg in
+		c) replaceFilePart=$cleanedFilePart;shift;;
 		h) usage;exit 0;;
 		*) usage;exit 1;;
 	esac
 done
 
-srcDir=csv
-destDir=$1
+srcDir=${1:-$(pwd)/csv} && cd $srcDir || {
+	echo
+	echo Cannot access source directory: $srcDir
+	echo
+	exit 1
+}
+
+
+cd $srcDir/.. || {
+	echo
+	echo Cannot access source directory parent: $srcDir
+	echo
+	exit 1
+}
+
+
+destDir=${2:-$(dirname ${srcDir})/sar-charts}
+
+
+echo Source directory: $srcDir
+echo Destination directory: $destDir
+
 
 [ -d "$srcDir" -a -r "$srcDir" ] || {
 	echo
@@ -41,7 +65,7 @@ destDir=$1
 	exit 1
 }
 
-mkdir $destDir
+mkdir -p $destDir
 
 [ -d "$destDir" -a -w "$destDir" ] || {
 	echo
@@ -51,6 +75,7 @@ mkdir $destDir
 	echo
 	exit 1
 }
+
 
 ### Template
 #echo working on sar-
@@ -83,79 +108,93 @@ fi
 
 
 # default of 1 chart per metric
-#echo working on sar-disk-default.xlsx
-#dynachart.pl --spreadsheet-file ${destDir}/sar-disk-default.xlsx --worksheet-col DEV --category-col 'timestamp' --chart-cols 'rd_sec/s' --chart-cols 'wr_sec/s' < sar-disk.csv
+#echo working on sar-disk-default${replaceFilePart}.xlsx
+#dynachart.pl --spreadsheet-file ${destDir}/sar-disk-default${replaceFilePart}.xlsx --worksheet-col DEV --category-col 'timestamp' --chart-cols 'rd_sec/s' --chart-cols 'wr_sec/s' < sar-disk${replaceFilePart}.csv
 
 # combine metrics into one chart
-#echo working on sar-disk-combined.xlsx
-#dynachart.pl --spreadsheet-file ${destDir}/sar-disk-combined.xlsx --combined-chart --worksheet-col DEV --category-col 'timestamp' --chart-cols 'rd_sec/s' --chart-cols 'wr_sec/s' < sar-disk.csv
+#echo working on sar-disk-combined${replaceFilePart}.xlsx
+#dynachart.pl --spreadsheet-file ${destDir}/sar-disk-combined${replaceFilePart}.xlsx --combined-chart --worksheet-col DEV --category-col 'timestamp' --chart-cols 'rd_sec/s' --chart-cols 'wr_sec/s' < sar-disk${replaceFilePart}.csv
 
 #:<<'COMMENT'
 
-echo working on sar-network-device.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-network-device.xlsx --combined-chart --worksheet-col IFACE --category-col 'timestamp' --chart-cols 'rxkB/s' --chart-cols 'txkB/s' < "$srcDir"/sar-net-dev.csv
+declare -A csvFiles=(
+	["sar-network-device${replaceFilePart}.xlsx"]="sar-net-dev${replaceFilePart}.csv"
+	["sar-network-error-device${replaceFilePart}.xlsx"]="sar-net-ede${replaceFilePart}.csv"
+	["sar-network-nfs${replaceFilePart}.xlsx"]="sar-net-nfs${replaceFilePart}.csv"
+	["sar-network-nfsd${replaceFilePart}.xlsx"]="sar-net-nfsd${replaceFilePart}.csv"
+	["sar-network-socket${replaceFilePart}.xlsx"]="sar-net-sock${replaceFilePart}.csv"
+	["sar-context${replaceFilePart}.xlsx"]="sar-context${replaceFilePart}.csv"
+	["sar-cpu${replaceFilePart}.xlsx"]="sar-cpu${replaceFilePart}.csv"
+	["sar-cpu-combined${replaceFilePart}.xlsx"]="sar-cpu${replaceFilePart}.csv"
+	["sar-io-default${replaceFilePart}.xlsx"]="sar-io${replaceFilePart}.csv"
+	["sar-io-tps-combined${replaceFilePart}.xlsx"]="sar-io${replaceFilePart}.csv"
+	["sar-io-blks-per-second-combined${replaceFilePart}.xlsx"]="sar-io${replaceFilePart}.csv"
+	["sar-load-runq-threads${replaceFilePart}.xlsx"]="sar-load${replaceFilePart}.csv"
+	["sar-load-runq${replaceFilePart}.xlsx"]="sar-load${replaceFilePart}.csv"
+	["sar-memory${replaceFilePart}.xlsx"]="sar-mem${replaceFilePart}.csv"
+	["sar-mem-utilization${replaceFilePart}.xlsx"]="sar-mem-utilization${replaceFilePart}.csv"
+	["sar-hugepages-utilization${replaceFilePart}.xlsx"]="sar-hugepages-utilization${replaceFilePart}.csv"
+	["sar-paging-rate${replaceFilePart}.xlsx"]="sar-paging${replaceFilePart}.csv"
+	["sar-swap-rate${replaceFilePart}.xlsx"]="sar-swap-stats${replaceFilePart}.csv"
+	["sar-swap-utilization${replaceFilePart}.xlsx"]="sar-swap-utilization${replaceFilePart}.csv"
+	["sar-kernel-fs${replaceFilePart}.xlsx"]="sar-kernel-fs${replaceFilePart}.csv"
+)
 
-echo working on sar-network-error-device.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-network-error-device.xlsx --combined-chart --worksheet-col IFACE --category-col 'timestamp' --chart-cols 'rxerr/s' --chart-cols 'txerr/s' < "$srcDir"/sar-net-ede.csv
+declare -A csvArgs=(
+	["sar-network-device${replaceFilePart}.xlsx"]="--combined-chart --worksheet-col IFACE --category-col 'timestamp' --chart-cols 'rxkB/s' --chart-cols 'txkB/s'"
+	["sar-network-error-device${replaceFilePart}.xlsx"]="--combined-chart --worksheet-col IFACE --category-col 'timestamp' --chart-cols 'rxerr/s' --chart-cols 'txerr/s'"
+	["sar-network-nfs${replaceFilePart}.xlsx"]="--worksheet-col hostname --category-col 'timestamp' --chart-cols 'call/s' --chart-cols 'retrans/s' --chart-cols 'read/s' --chart-cols 'write/s' --chart-cols 'access/s' --chart-cols 'getatt/s'"
+	["sar-network-nfsd${replaceFilePart}.xlsx"]="--worksheet-col hostname --category-col 'timestamp' --chart-cols 'scall/s' --chart-cols 'badcall/s' --chart-cols 'packet/s' --chart-cols 'udp/s' --chart-cols 'tcp/s' --chart-cols 'hit/s' --chart-cols 'miss/s' --chart-cols 'sread/s' --chart-cols 'swrite/s' --chart-cols 'saccess/s' --chart-cols 'sgetatt/s'"
+	["sar-network-socket${replaceFilePart}.xlsx"]="--worksheet-col hostname --category-col 'timestamp' --chart-cols 'totsck' --chart-cols 'tcpsck' --chart-cols 'udpsck' --chart-cols 'rawsck' --chart-cols 'ip-frag' --chart-cols 'tcp-tw'"
+	["sar-context${replaceFilePart}.xlsx"]="--worksheet-col hostname --category-col 'timestamp' --chart-cols 'proc/s' --chart-cols 'cswch/s'"
+	["sar-cpu${replaceFilePart}.xlsx"]="--worksheet-col hostname --category-col 'timestamp' --chart-cols '%usr' --chart-cols '%nice' --chart-cols '%sys' --chart-cols '%iowait' --chart-cols '%steal' --chart-cols '%irq' --chart-cols '%soft' --chart-cols '%guest' --chart-cols '%idle'"
+	["sar-cpu-combined${replaceFilePart}.xlsx"]="--combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols '%usr' --chart-cols '%nice' --chart-cols '%sys' --chart-cols '%iowait' --chart-cols '%steal' --chart-cols '%irq' --chart-cols '%soft' --chart-cols '%guest' --chart-cols '%idle'"
+	["sar-io-default${replaceFilePart}.xlsx"]="--worksheet-col hostname --category-col 'timestamp' --chart-cols 'tps' --chart-cols 'rtps' --chart-cols 'wtps' --chart-cols 'bread/s' --chart-cols 'bwrtn/s'"
+	["sar-io-tps-combined${replaceFilePart}.xlsx"]="--combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'tps' --chart-cols 'rtps' --chart-cols 'wtps'"
+	["sar-io-blks-per-second-combined${replaceFilePart}.xlsx"]="--combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'bread/s' --chart-cols 'bwrtn/s'"
+	["sar-load-runq-threads${replaceFilePart}.xlsx"]="--combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'runq-sz' --chart-cols 'plist-sz' --chart-cols 'ldavg-1' --chart-cols 'ldavg-5' --chart-cols 'ldavg-15'"
+	["sar-load-runq${replaceFilePart}.xlsx"]="--combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'runq-sz' --chart-cols 'ldavg-1' --chart-cols 'ldavg-5' --chart-cols 'ldavg-15'"
+	["sar-memory${replaceFilePart}.xlsx"]="--combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'frmpg/s' --chart-cols  'bufpg/s'"
+	["sar-mem-utilization${replaceFilePart}.xlsx"]="--worksheet-col hostname --category-col 'timestamp' --chart-cols '%commit' --chart-cols 'kbcommit' --chart-cols 'kbmemfree' --chart-cols  'kbmemused' --chart-cols 'kbcached'"
+	["sar-hugepages-utilization${replaceFilePart}.xlsx"]="--worksheet-col hostname --category-col 'timestamp' --chart-cols 'kbhugfree' --chart-cols 'kbhugused' --chart-cols '%hugused'"
+	["sar-paging-rate${replaceFilePart}.xlsx"]="--combined-chart --worksheet-col hostname --category-col 'timestamp'  --chart-cols 'pgpgin/s' --chart-cols  'pgpgout/s'"
+	["sar-swap-rate${replaceFilePart}.xlsx"]="--combined-chart --worksheet-col hostname --category-col 'timestamp'  --chart-cols 'pswpin/s' --chart-cols 'pswpout/s'"
+	["sar-swap-utilization${replaceFilePart}.xlsx"]="--combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'kbswpfree' --chart-cols 'kbswpused' --chart-cols '%swpused' --chart-cols 'kbswpcad' --chart-cols '%swpcad'"
+	["sar-kernel-fs${replaceFilePart}.xlsx"]="--worksheet-col hostname --category-col 'timestamp' --chart-cols 'dentunusd' --chart-cols 'file-nr' --chart-cols 'inode-nr' --chart-cols 'pty-nr'"
+)
 
-echo working on sar-network-nfs.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-network-nfs.xlsx --worksheet-col hostname --category-col 'timestamp' --chart-cols 'call/s' --chart-cols 'retrans/s' --chart-cols 'read/s' --chart-cols 'write/s' --chart-cols 'access/s' --chart-cols 'getatt/s'  < "$srcDir"/sar-net-nfs.csv
+for key in "${!csvFiles[@]}"; do
+	value=${csvFiles[$key]}
+	echo "$key => $value"
+done
 
-echo working on sar-network-nfsd.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-network-nfsd.xlsx --worksheet-col hostname --category-col 'timestamp' --chart-cols 'scall/s' --chart-cols 'badcall/s' --chart-cols 'packet/s' --chart-cols 'udp/s' --chart-cols 'tcp/s' --chart-cols 'hit/s' --chart-cols 'miss/s' --chart-cols 'sread/s' --chart-cols 'swrite/s' --chart-cols 'saccess/s' --chart-cols 'sgetatt/s' < "$srcDir"/sar-net-nfsd.csv
-
-echo working on sar-network-socket.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-network-socket.xlsx --worksheet-col hostname --category-col 'timestamp' --chart-cols 'totsck' --chart-cols 'tcpsck' --chart-cols 'udpsck' --chart-cols 'rawsck' --chart-cols 'ip-frag' --chart-cols 'tcp-tw' < "$srcDir"/sar-net-sock.csv
-
-echo working on sar-context.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-context.xlsx --worksheet-col hostname --category-col 'timestamp' --chart-cols 'proc/s' --chart-cols 'cswch/s' < "$srcDir"/sar-context.csv
-
-echo working on sar-cpu.xlsx
-# extracted with -u ALL, so all CPU on one line
-dynachart.pl --spreadsheet-file ${destDir}/sar-cpu.xlsx --worksheet-col hostname --category-col 'timestamp' --chart-cols '%usr' --chart-cols '%nice' --chart-cols '%sys' --chart-cols '%iowait' --chart-cols '%steal' --chart-cols '%irq' --chart-cols '%soft' --chart-cols '%guest' --chart-cols '%idle' < "$srcDir"/sar-cpu.csv
-
-echo working on sar-cpu-combined.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-cpu-combined.xlsx --combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols '%usr' --chart-cols '%nice' --chart-cols '%sys' --chart-cols '%iowait' --chart-cols '%steal' --chart-cols '%irq' --chart-cols '%soft' --chart-cols '%guest' --chart-cols '%idle' < "$srcDir"/sar-cpu.csv
-
-
-echo working on sar-io-default.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-io-default.xlsx --worksheet-col hostname --category-col 'timestamp' --chart-cols 'tps' --chart-cols 'rtps' --chart-cols 'wtps' --chart-cols 'bread/s' --chart-cols 'bwrtn/s' < "$srcDir"/sar-io.csv
-
-echo working on sar-io-tps-combined.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-io-tps-combined.xlsx --combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'tps' --chart-cols 'rtps' --chart-cols 'wtps' < "$srcDir"/sar-io.csv
-
-echo working on sar-io-blks-per-second-combined.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-io-blks-per-second-combined.xlsx --combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'bread/s' --chart-cols 'bwrtn/s' < "$srcDir"/sar-io.csv
-
-
-echo working on sar-load-runq-threads.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-load-runq-threads.xlsx --combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'runq-sz' --chart-cols 'plist-sz' --chart-cols 'ldavg-1' --chart-cols 'ldavg-5' --chart-cols 'ldavg-15' < "$srcDir"/sar-load.csv
-
-echo working on sar-load-runq.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-load-runq.xlsx --combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'runq-sz' --chart-cols 'ldavg-1' --chart-cols 'ldavg-5' --chart-cols 'ldavg-15' < "$srcDir"/sar-load.csv
-
-echo working on sar-memory.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-memory.xlsx --combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'frmpg/s' --chart-cols  'bufpg/s' < "$srcDir"/sar-mem.csv
-
-echo working on sar-mem-utilization.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-mem-utilization.xlsx --worksheet-col hostname --category-col 'timestamp' --chart-cols '%commit' --chart-cols 'kbcommit' --chart-cols 'kbmemfree' --chart-cols  'kbmemused' --chart-cols 'kbcached' < "$srcDir"/sar-mem-utilization.csv
-
-echo working on sar-hugepages-utilization.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-hugepages-utilization.xlsx --worksheet-col hostname --category-col 'timestamp' --chart-cols 'kbhugfree' --chart-cols 'kbhugused' --chart-cols '%hugused'  < "$srcDir"/sar-hugepages-utilization.csv
-
-echo working on sar-paging-rate.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-paging-rate.xlsx --combined-chart --worksheet-col hostname --category-col 'timestamp'  --chart-cols 'pgpgin/s' --chart-cols  'pgpgout/s' < "$srcDir"/sar-paging.csv
-
-echo working on sar-swap-rate.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-swap-rate.xlsx --combined-chart --worksheet-col hostname --category-col 'timestamp'  --chart-cols 'pswpin/s' --chart-cols 'pswpout/s' < "$srcDir"/sar-swap-stats.csv
+for key in "${!csvArgs[@]}"; do
+	value=${csvArgs[$key]}
+	echo "$key => $value"
+done
 
 
-echo working on sar-swap-utilization.xlsx
-dynachart.pl --spreadsheet-file ${destDir}/sar-swap-utilization.xlsx --combined-chart --worksheet-col hostname --category-col 'timestamp' --chart-cols 'kbswpfree' --chart-cols 'kbswpused' --chart-cols '%swpused' --chart-cols 'kbswpcad' --chart-cols '%swpcad' < "$srcDir"/sar-swap-utilization.csv
 
-#COMMENT
+exit
 
-echo working on sar-kernel-fs.csv
-dynachart.pl --spreadsheet-file ${destDir}/sar-kernel-fs.xlsx --worksheet-col hostname --category-col 'timestamp' --chart-cols 'dentunusd' --chart-cols 'file-nr' --chart-cols 'inode-nr' --chart-cols 'pty-nr' < "$srcDir"/sar-kernel-fs.csv
+for spreadsheet in "${!csvFiles[@]}"; do
+	csvFile=${csvFiles[$spreadsheet]}
+	args=${csvArgs[$spreadsheet]}
+	
+	echo working on $spreadsheet
+	[[ -f "$srcDir/$csvFile" ]] || {
+		echo "Source CSV file $srcDir/$csvFile not found, skipping $spreadsheet"
+		continue	
+	}
+
+	[[ -s "$srcDir/$csvFile" ]] || {
+		echo "Source CSV file $srcDir/$csvFile is empty, skipping $spreadsheet"
+		continue	
+	}
+
+	eval "dynachart.pl --spreadsheet-file ${destDir}/$spreadsheet $args < "$srcDir"/$csvFile"
+
+done
+
 
 
