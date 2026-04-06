@@ -217,14 +217,6 @@ If the `-p` option of `asp.sh` is used to match disk devices to logical names, t
 
 The `-p` option requires that `asp.sh` be run on the originating server.
 
-### fix-csv.sh
-
-When a server is restarted, the sar file will have a 'RESTART' line in it, along with an additional header line.
-
-This script removes all 'RESTART' lines from the CSV files, and ensures there is only one header line.
-
-Files are re-written in place, and are not backed up.
-
 ### get-sar.sh
 
 Copies sar files from all RAC nodes
@@ -337,7 +329,6 @@ By using some of the tools from the [csv-tools](https://github.com/jkstill/csv-t
 
 The `sar-chart-driver.sh` script calls the following scripts, and runs each on all CSV files in the directory structure
 
-* restart-cleanup.sh
 * sar-cleaned.sh
 * sar-chart.sh
 * sar-chart-cleaned.sh
