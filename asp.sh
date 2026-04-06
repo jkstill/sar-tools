@@ -287,7 +287,8 @@ do
 	#echo "file: ${sarDestOptions["$saropt"]}"
 
 	# extra sed to remove the '^# ' in the header line
-	CMD="sadf -d -- "$saropt"  | head -1 | sed -e 's/^# //' | $csvConvertCmd "
+	# skip LINUX-RESTART. 
+	CMD="sadf -d -- "$saropt" | head -10 | grep -v 'LINUX-RESTART' | head -1 | sed -e 's/^# //' | $csvConvertCmd "
 
 	if [ "$dryRun" == 'N' ]; then
 		CMD="$CMD  > ${sarDstDir}/${sarDestOptions["$saropt"]} "
@@ -350,7 +351,7 @@ do
 
 			if [[ $sadfFileType == 'data' ]]; then
 
-				CMD="sadf -d -- $saropt $sadfFile | tail -n +2 | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
+				CMD="sadf -d -- $saropt $sadfFile | grep -v 'LINUX-RESTART' | tail -n +2 | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
 			else
 				# get the file extension - it should match the compression program
 				declare zipperExe
