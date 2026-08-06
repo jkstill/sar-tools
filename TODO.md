@@ -4,7 +4,7 @@ To Do List
 
 ## Drive Mapping
 
-This is only relevant for Oracle Grid Infrastructure, but is included here as it is sometimes desirable to map the Oracle ASM drives back to the physsical drives.
+This is only relevant for Oracle Grid Infrastructure, but is included here as it is sometimes desirable to map the Oracle ASM drives back to the physical drives.
 
 Doing so allows getting some metrics that are not available in ASM data, such as disk queuing
 
