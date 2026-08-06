@@ -162,8 +162,6 @@ cat << EOF
 
 EOF
 
-#exit
-
 
 mkdir -p $sarDstDir || {
 
@@ -219,6 +217,32 @@ echo release: ${linuxInfo[release]}
 echo version: ${linuxInfo[version]}
 echo directory: ${linuxInfo[directory]}
 echo sysstat version: ${linuxInfo['sysstat-version']}
+
+# if version is 7 or 8 we need the sadf-12.4.5 binary to be in the same directory as asp.sh
+scriptHome=$(dirname -- "$( realpath -s -- "$0"; )")
+
+sadfName="sadf-12.4.5"
+
+sadfBin="$scriptHome/$sadfName"
+#
+# is version 7 or 8 and is sadf in the same directory as asp.sh?
+echo "X version: ${linuxInfo[version]}"
+
+if [[ ${linuxInfo[version]} =~ ^(7|8)$ ]]; then
+
+	[[ -x "$sadfBin" ]] || {
+		echo
+		echo "  !!! WARNING !!!"
+		echo "  $sadfName binary not found in $scriptHome"
+		echo "  sar disk IO files from version 7 or 8 will not include devices names"
+		echo
+	}
+else
+	echo RESETTING
+	sadfBin=$(which sadf)
+fi
+
+echo "sadf binary: $sadfBin"
 
 declare -A sarDestOptions
 
@@ -288,7 +312,7 @@ do
 
 	# extra sed to remove the '^# ' in the header line
 	# skip LINUX-RESTART if it exists
-	CMD="sadf -d -- "$saropt" | head -10 | grep -v 'LINUX-RESTART' | head -1 | sed -e 's/^# //' | $csvConvertCmd "
+	CMD="$sadfBin -d -- "$saropt" | head -10 | grep -v 'LINUX-RESTART' | head -1 | sed -e 's/^# //' | $csvConvertCmd "
 
 	if [ "$dryRun" == 'N' ]; then
 		CMD="$CMD  > ${sarDstDir}/${sarDestOptions["$saropt"]} "
@@ -314,11 +338,10 @@ do
 		rm -f  ${sarDstDir}/${sarDestOptions["$saropt"]}
 		unset sarDestOptions["$saropt"]
 	fi
-	#sadf -d -- ${sarDestOptions[$i]}  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestFiles[$i]}
+	#$sadfBin -d -- ${sarDestOptions[$i]}  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestFiles[$i]}
 	echo "################"
 done
 
-#exit
 
 #: <<'COMMENT'
 
@@ -351,7 +374,7 @@ do
 
 			if [[ $sadfFileType == 'data' ]]; then
 
-				CMD="sadf -d -- $saropt $sadfFile | grep -Ev '^#\s*hostname|LINUX-RESTART' | tail -n +2 | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
+				CMD="$sadfBin -d -- $saropt $sadfFile | grep -Ev '^#\s*hostname|LINUX-RESTART' | tail -n +2 | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
 			else
 				# get the file extension - it should match the compression program
 				declare zipperExe
@@ -359,7 +382,7 @@ do
 				[[ -x $(which $zipperExe) ]] || { echo "skipping file $sadfFile - zip program '$zipperExe' not found" >&2; continue; }
 
 				# will return error 13 pipefail (RC is 141, subtract 128) if 'set -o pipefail'
-				CMD="$zipperExe $unzipOptions $sadfFile | sadf -d -- $saropt | tail -n +2  | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
+				CMD="$zipperExe $unzipOptions $sadfFile | $sadfBin -d -- $saropt | tail -n +2  | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
 
 			fi
 
