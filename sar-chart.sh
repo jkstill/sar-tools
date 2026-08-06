@@ -173,10 +173,6 @@ for key in "${!csvArgs[@]}"; do
 	echo "$key => $value"
 done
 
-
-
-exit
-
 for spreadsheet in "${!csvFiles[@]}"; do
 	csvFile=${csvFiles[$spreadsheet]}
 	args=${csvArgs[$spreadsheet]}
