@@ -217,14 +217,6 @@ If the `-p` option of `asp.sh` is used to match disk devices to logical names, t
 
 The `-p` option requires that `asp.sh` be run on the originating server.
 
-### fix-csv.sh
-
-When a server is restarted, the sar file will have a 'RESTART' line in it, along with an additional header line.
-
-This script removes all 'RESTART' lines from the CSV files, and ensures there is only one header line.
-
-Files are re-written in place, and are not backed up.
-
 ### get-sar.sh
 
 Copies sar files from all RAC nodes
@@ -238,6 +230,41 @@ Processes the CSV files for all sar files collected.
 Creates a sed command file that can be used to replace the devmajor-minor values in the sar output with ASMLib disk names
 
 It is assumed that disks are partitioned.  If not, the script will require some adjustment
+
+## sar-filter-time.sh
+
+Used to call `sar-filter-time.py` to filter out data from a specified time range.
+
+The arguments are the source and destination directories. The script will look for all CSV files in the source directory, and filter them by a specified time range.
+
+The time range is hardcoded in the shell script, so modify as needed.
+
+Exameple: `./sar-filter-time.sh csv-original csv-filtered`
+
+## sar-filter-time.py
+
+This python script filters data from sar files. The begin and end times are inclusive. 
+
+The output file will contain all data from the original file that falls within the specified time range.
+
+```text
+$  ./sar-filter-time.py -h
+usage: sar-filter-time.py [-h] --begin BEGIN --end END [-o OUTPUT] input_file
+
+Filter sar CSV data by timestamp range.
+
+positional arguments:
+  input_file            Input sar CSV file
+
+options:
+  -h, --help            show this help message and exit
+  --begin BEGIN         Begin timestamp, e.g. "2026-04-13 04:30:00"
+  --end END             End timestamp, e.g. "2026-04-13 05:20:00"
+  -o OUTPUT, --output OUTPUT
+                        Output file. Defaults to stdout.
+```
+
+Example: `./sar-filter-time.py csv-original/sar-hugepages-utilization.csv --begin '2026-05-10 00:55:00' --end '2026-05-10 01:32:10' --output csv-filtered/sar-hugepages-utilization.csv`
 
 ## Charting
 
@@ -337,7 +364,6 @@ By using some of the tools from the [csv-tools](https://github.com/jkstill/csv-t
 
 The `sar-chart-driver.sh` script calls the following scripts, and runs each on all CSV files in the directory structure
 
-* restart-cleanup.sh
 * sar-cleaned.sh
 * sar-chart.sh
 * sar-chart-cleaned.sh

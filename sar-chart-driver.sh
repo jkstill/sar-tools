@@ -34,9 +34,6 @@ do
 		echo "   server: $server"
 		cd $server
 
-		# remove LINUX-RESTART messages
-   	../../restart-cleanup.sh
-
 		# uncomment only if you have the python scripts
 		#../../sar-cleaned.sh
 
