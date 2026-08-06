@@ -274,6 +274,9 @@ The use of these tools requires having Perl with the Excel::Writer::XLSX Package
 
 To chart the sar files, just get `sar-chart.sh` and `dynachart.pl`.
 
+If you find multiple '# hostname' lines and/or 'LINUX-RESTART' lines in the sar CSV files, `sar-chart.sh` will removed them and created a backup file with the extension `.bak` before creating the charts.
+
+
 ```text
 
 # ls -1 
@@ -287,7 +290,7 @@ drwxrwxr-x 2 jkstill dba  4096 Jan  9 14:53 xlsx
 
 # cd sar-csv
 
-# ../sar-chart.sh  ../xlsx
+# ../sar-chart.sh  -d xlsx
 working on sar-disk-default.xlsx
 working on sar-disk-combined.xlsx
 working on sar-network-device.xlsx
