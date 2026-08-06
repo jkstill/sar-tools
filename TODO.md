@@ -1,3 +1,4 @@
+
 To Do List
 ==========
 
@@ -27,4 +28,14 @@ This is a work in progress
 [How to map an ASMLIB disk to a device name](http://asmsupportguy.blogspot.com/2010/05/how-to-map-asmlib-disk-to-device-name.html)
 [kfed - ASM metadata editor ](http://asmsupportguy.blogspot.com/2010/04/kfed-asm-metadata-editor.html)
 [ASM disk header ](http://asmsupportguy.blogspot.com/2011/08/asm-disk-header.html)
+=======
+
+SAR Tools ToDo
+==============
+
+
+- automatically determine if sar is being archived monthly
+  -  check /etc/sysconfig/sysstat for 'HISTORY=NN'
+  -  if GT 28, then sar files are being archived monthly
+  - see `SAR-archives.md` for detailed info
 

@@ -41,7 +41,7 @@ If you copy the files from another location, be sure to preserve the timestamps.
 
 Just specify the source and destination directories, and if pretty printing should be used on disk devices.
 
-eg. `./asp.sh -s /var/log/sa -d ./csv -p`
+eg. `./asp.sh -d ./csv -p`
 
 ## asp.pl
 
@@ -172,6 +172,8 @@ use the -d and -s options to set the destination and source directories.
 
 ## asp.pl
 
+Note: asp.sh currently does a better job of locating sar files, and setting version dependencies
+
 The `asp.pl` script is just a little different in console output, but the same files are created as with `asp.sh`.
 
 ```text
@@ -229,6 +231,41 @@ Creates a sed command file that can be used to replace the devmajor-minor values
 
 It is assumed that disks are partitioned.  If not, the script will require some adjustment
 
+## sar-filter-time.sh
+
+Used to call `sar-filter-time.py` to filter out data from a specified time range.
+
+The arguments are the source and destination directories. The script will look for all CSV files in the source directory, and filter them by a specified time range.
+
+The time range is hardcoded in the shell script, so modify as needed.
+
+Exameple: `./sar-filter-time.sh csv-original csv-filtered`
+
+## sar-filter-time.py
+
+This python script filters data from sar files. The begin and end times are inclusive. 
+
+The output file will contain all data from the original file that falls within the specified time range.
+
+```text
+$  ./sar-filter-time.py -h
+usage: sar-filter-time.py [-h] --begin BEGIN --end END [-o OUTPUT] input_file
+
+Filter sar CSV data by timestamp range.
+
+positional arguments:
+  input_file            Input sar CSV file
+
+options:
+  -h, --help            show this help message and exit
+  --begin BEGIN         Begin timestamp, e.g. "2026-04-13 04:30:00"
+  --end END             End timestamp, e.g. "2026-04-13 05:20:00"
+  -o OUTPUT, --output OUTPUT
+                        Output file. Defaults to stdout.
+```
+
+Example: `./sar-filter-time.py csv-original/sar-hugepages-utilization.csv --begin '2026-05-10 00:55:00' --end '2026-05-10 01:32:10' --output csv-filtered/sar-hugepages-utilization.csv`
+
 ## Charting
 
 The charting tools are found at [dynachart](https://github.com/jkstill/csv-tools/tree/master/dynachart)
@@ -236,6 +273,9 @@ The charting tools are found at [dynachart](https://github.com/jkstill/csv-tools
 The use of these tools requires having Perl with the Excel::Writer::XLSX Package installed.
 
 To chart the sar files, just get `sar-chart.sh` and `dynachart.pl`.
+
+If you find multiple '# hostname' lines and/or 'LINUX-RESTART' lines in the sar CSV files, `sar-chart.sh` will removed them and created a backup file with the extension `.bak` before creating the charts.
+
 
 ```text
 
@@ -250,7 +290,7 @@ drwxrwxr-x 2 jkstill dba  4096 Jan  9 14:53 xlsx
 
 # cd sar-csv
 
-# ../sar-chart.sh  ../xlsx
+# ../sar-chart.sh  -d xlsx
 working on sar-disk-default.xlsx
 working on sar-disk-combined.xlsx
 working on sar-network-device.xlsx
@@ -397,6 +437,12 @@ avgMiddlePeriod: 0.166181
 The avg values shown do not represent the values from the sar data. Those are just values calculated so periods may be compared.
 
 ```
+
+## References
+
+[sar man page](https://man7.org/linux/man-pages/man1/sar.1.html)
+[sar/sysstat home](http://sebastien.godard.pagesperso-orange.fr/)
+
 
 
 
