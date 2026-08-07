@@ -208,6 +208,19 @@ working on 'sar -W sar-csv/sar-swap-stats.csv'
 ...............................
 ```
 
+### sadf-12.4.5
+
+See [sadf-12.4.5](./sadf-build/README.md) for information on building sadf-12.4.5 from source.
+
+Doing so allows getting device names when collecting disk IO metrics from sar.
+
+The sadf that comes with Linux 7 and 8 can do this, but it is so slow as to be useless.
+
+If `sadf-12.4.5` is not available, then the installed `sadf` will be used. It is advised to not use the `-p` option to `asp.sh` in that case.
+
+There is a `sadf-12.4.5` binary in the root directory of the repo, but it is not guaranteed to work on all systems.
+
+It has been tested on Oracle Linux versions 7 and 8.  It is not necessarey on Linux 9.
 
 ## Auxilary scripts
 
