@@ -5,6 +5,7 @@
 # 2017-07-20
 
 # asp - another sar processor
+# asp-improved: simplified handling of Linux 7/8 + bundled sadf-12.4.5
 
 # tested on:
 # RedHat/Oracle  5,6,7,8
@@ -18,31 +19,23 @@ help() {
 
 	cat <<-EOF
 
-	  $0 
-       -d dest-dir 
+	  $0
+       -d dest-dir
        -p pretty print Disk Device Names
        -n no disk metrics
        -y dry run
-	
-	  Note: only use -p if running on the same system where sar files are generated
-	  otherwise the names printed will be incorrect         	
-	EOF
-	
-	echo
-}
 
-declare -A sar8TmpFiles=()
-cleanupTmpFiles () {
-	for saropt in "${!sar8TmpFiles[@]}"
-	do
-		rm -f ${sar8TmpFiles["$saropt"]} 2>/dev/null
-	done
+	  Note: only use -p if running on the same system where sar files are generated
+	  otherwise the names printed will be incorrect
+	EOF
+
+	echo
 }
 
 # returns 'releaseType:version:sar data dir:sadc version'
 
 getLinuxVariantInfo () {
-	
+
 	local variant
 	local version
 	local sysstatVersion
@@ -56,17 +49,17 @@ getLinuxVariantInfo () {
 	if [[ -r /etc/os-release ]]; then
 		releaseFile=/etc/os-release
 		variant=$(grep -E '^ID=' /etc/os-release| tr -d '[ \"]' | cut -f1 -d\. | cut -f2 -d=)
-	elif [[ -r /etc/oracle-release ]]; then # old oracle - LT version 6 
+	elif [[ -r /etc/oracle-release ]]; then # old oracle - LT version 6
 		releaseFile=/etc/oracle-release
 		variant='oracle'
 		oldSchool=Y
 		sysstatFile=/etc/sysconfig/sysstat
-	elif [[ -r /etc/redhat-release ]]; then # old redhat - LT version 6 
+	elif [[ -r /etc/redhat-release ]]; then # old redhat - LT version 6
 		releaseFile=/etc/redhat-release
 		variant='redhat'
 		oldSchool=Y
 		sysstatFile=/etc/sysconfig/sysstat
-	else 
+	else
 		echo 'Cannot find a suitable release file to determine Linux variant'
 		return 1
 	fi
@@ -88,7 +81,7 @@ getLinuxVariantInfo () {
    # variants
 	# rhel: redhat
 	# fedora: redhat
-	# ol: oracle 
+	# ol: oracle
 	# linuxmint: debian
 	# ubuntu: debian
 
@@ -147,8 +140,6 @@ dryRun='N'
 # variables can be set to identify multiple sets of copied sar files
 sarDstDir="sar-csv"
 
-csvConvertCmd=" sed -e 's/;/,/g' "
-
 while getopts d:hpny arg
 do
 	case $arg in
@@ -170,7 +161,7 @@ EOF
 
 mkdir -p $sarDstDir || {
 
-	echo 
+	echo
 	echo Failed to create $sarDstDir
 	echo
 	exit 1
@@ -198,14 +189,12 @@ mkdir -p $sarDstDir || {
 #                the LABEL/PATH/UUID/ID will be set from the matching device on the current system
 #                so the default will be to not translate device names
 # The same goes for the -p option - it will take device names from the local system
-# 
-
+#
 
 # though the sar files may be in 1 of 3 slightly different directory structured
 # depending on version and options, we can get the most recent 30 days with find | ls
 # regardless of configuration
 # it is just necessary to know where the sa files are stored
-
 
 declare -A linuxInfo
 
@@ -222,36 +211,31 @@ echo version: ${linuxInfo[version]}
 echo directory: ${linuxInfo[directory]}
 echo sysstat version: ${linuxInfo['sysstat-version']}
 
-# if version is 7 or 8 and/or sysstat < 12.4.0 we need the sadf-12.4.5 binary to be in the same directory as asp.sh
+# Linux 7/8 native sadf does not resolve disk device names properly - that was
+# fixed in sysstat 12.4.0. When the bundled sadf-12.4.5 binary is present in this
+# script's directory, use it for every sar file; sar data from Linux 7 also needs
+# a one-time format conversion (via that same binary) before sadf-12.4.5 can read it.
 scriptHome=$(dirname -- "$( realpath -s -- "$0"; )")
-
 sadfName="sadf-12.4.5"
-
 sadfBin="$scriptHome/$sadfName"
-#
-# is version 7 or 8 and is sadf in the same directory as asp.sh?
-echo "X version: ${linuxInfo[version]}"
-usingCustomSadf=1
 
-echo "1. sadfBin: $sadfBin"
-
-if [[ ${linuxInfo[version]} =~ ^(7|8)$ ]] && [[ ! -x "$sadfBin" ]]
-then
-
-	echo
-	echo "  !!! WARNING !!!"
-	echo "  $sadfName binary not found in $scriptHome"
-	echo "  sar disk IO files from version 7 or 8 will not include devices names"
-	echo
-	sadfBin=$(which sadf)
+if [[ -x "$sadfBin" ]]; then
+	usingCustomSadf=1
+else
 	usingCustomSadf=0
+	sadfBin=$(command -v sadf)
+	if [[ ${linuxInfo[version]} =~ ^(7|8)$ ]]; then
+		echo
+		echo "  !!! WARNING !!!"
+		echo "  $sadfName binary not found in $scriptHome"
+		echo "  sar disk IO files from version 7 or 8 will not include device names"
+		echo
+	fi
 fi
 
-echo "2. sadf binary: $sadfBin"
+echo "sadf binary: $sadfBin"
 
 declare -A sarDestOptions
-
-#sarDestOptions=( "-d ${sarDiskOpts} " '-b' '-q' '-u ALL' '-r' '-R' '-B' '-S' '-W' '-n DEV' '-n EDEV' '-n NFS' '-n NFSD' '-n SOCK' '-n IP' '-n EIP' '-n ICMP' '-n EICMP' '-n TCP' '-n ETCP' '-n UDP' '-v' '-w')
 
 [ "$getDiskMetrics" == 'Y' ] && {
 	sarDestOptions["-d ${sarDiskOpts} "]='sar-disk.csv'
@@ -311,232 +295,140 @@ declare -A zippers=(
 	[xz]=xz
 )
 
-: <<'COMMENT'
-
-sadf 12.4.5 can be used directly on sar files on Linux 8.
-
-However it will not work with sar files from Linux 7.
-
-The files on Linux 7 can be converted via sadf -c
-
-COMMENT
+# sadf 12.4.5 can be used directly on sar files on Linux 8.
+# However it will not work with sar files from Linux 7.
+# The files on Linux 7 can be converted via 'sadf -c'.
 
 convertSar7to8 () {
 	declare sar7File=$1
 	declare sar8File=$2
 
-	[[ -r $sar7File ]] || { echo "convertSar7to8: cannot read $sar7File"; return 1; }
-	[[ -w $(dirname $sar8File) ]] || { echo "convertSar7to8: cannot write to $(dirname $sar8File)"; return 1; }
+	[[ -r $sar7File ]] || { echo "convertSar7to8: cannot read $sar7File" >&2; return 1; }
+	[[ -w $(dirname $sar8File) ]] || { echo "convertSar7to8: cannot write to $(dirname $sar8File)" >&2; return 1; }
 
 	$sadfBin -c -- "$sar7File" > "$sar8File"
 	return $?
 }
 
-#while [[ $i -lt ${#x[@]} ]]; do echo ${x[$i]}; (( i++ )); done;
-# initialize files with header row
+tmpDir=/tmp/sar-tools
+mkdir -p "$tmpDir" 2>/dev/null
 
-oldestSarFile=$(realpath $(ls -1tr /var/log/sa/sa?? | head -1))
-sar8tmpFile=$(mktemp -p /tmp/sar-tools sar8.XXXXXXXX)
-sadfReferenceFile=$oldestSarFile
-sadfWorkFile=$sadfReferenceFile
+declare -a tmpFiles=()
+cleanupTmpFiles () {
+	[[ ${#tmpFiles[@]} -gt 0 ]] && rm -f "${tmpFiles[@]}" 2>/dev/null
+}
+trap cleanupTmpFiles EXIT
 
-for saropt in "${!sarDestOptions[@]}"
-do
+# Prepares a sar source file for use with sadfBin: decompresses it if needed,
+# and converts Linux 7 format to Linux 8 format when required.
+# Sets the global $preparedFile to a plain, sadf-readable file (rather than
+# echoing it - this must run in the parent shell, not a $(...) subshell, or
+# the tmpFiles it registers for cleanup would vanish with the subshell).
+# Called once per source file (not once per sar option), so decompression/
+# conversion never repeats.
+preparedFile=''
+prepareSadfInput () {
+	local srcFile=$1
+	local workFile=$srcFile
+	local fileType
+	fileType=$(file "$srcFile" | awk '{print $2}' | tr '[A-Z]' '[a-z]')
 
-	csvOutputFile="${sarDstDir}/${sarDestOptions["$saropt"]}"
-
-	echo "saropt: $saropt"
-	echo "file: ${sarDestOptions["$saropt"]}"
-	echo "version: ${linuxInfo['version']}"
-	echo "csvOutputFile: $csvOutputFile"
-	echo "sadfReferenceFile: $sadfReferenceFile"
-
-	echo ${linuxInfo['version']} 
-	echo $(file $sadfReferenceFile | awk '{ print $2 }' | tr '[A-Z]' '[a-z]')
-
-	if [[ ${linuxInfo['version']} == '7' ]] && [[ $usingCustomSadf -eq 1 ]] && [[ $(file $sadfReferenceFile | awk '{ print $2 }' | tr '[A-Z]' '[a-z]') == 'data' ]]; then
-
-		#ls -l $sar8tmpFile
-
-		[[ ! -s $sar8tmpFile ]] && [[ $usingCustomSadf -eq 1 ]] && {
-
-			sar7File=$sadfReferenceFile
-
-			echo "Converting Linux 7 sar file to Linux 8 format: $sar7File -> $sar8tmpFile"
-			convertSar7to8 "$sar7File" "$sar8tmpFile"
-			if [[ $? -ne 0 ]]; then
-				echo "1. Failed to convert $sar7File to $sar8tmpFile"
-				exit 1 
-			fi
-		}
-
-		sadfWorkFile="$sar8tmpFile"
+	if [[ $fileType != 'data' ]]; then
+		local ext=${srcFile##*.}
+		local zipperExe=${zippers[$ext]:-}
+		if [[ -z $zipperExe ]] || ! command -v "$zipperExe" >/dev/null 2>&1; then
+			echo "prepareSadfInput: no zip program available for '$srcFile' (ext: $ext)" >&2
+			return 1
+		fi
+		local decompressed
+		decompressed=$(mktemp -p "$tmpDir" sar-decomp.XXXXXXXX)
+		tmpFiles+=("$decompressed")
+		"$zipperExe" $unzipOptions "$srcFile" > "$decompressed"
+		workFile=$decompressed
 	fi
 
-	# extra sed to remove the '^# ' in the header line
-	# skip LINUX-RESTART if it exists
-	CMD="$sadfBin -d -- "$saropt" $sadfWorkFile | head -10 | grep -v 'LINUX-RESTART' | head -1 | sed -e 's/^# //' | $csvConvertCmd "
-
-	if [ "$dryRun" == 'N' ]; then
-		CMD="$CMD > $csvOutputFile"
+	if [[ ${linuxInfo['version']} == '7' && $usingCustomSadf -eq 1 ]]; then
+		local converted
+		converted=$(mktemp -p "$tmpDir" sar8.XXXXXXXX)
+		tmpFiles+=("$converted")
+		if ! convertSar7to8 "$workFile" "$converted"; then
+			echo "prepareSadfInput: failed to convert $workFile to Linux 8 format" >&2
+			return 1
+		fi
+		workFile=$converted
 	fi
-	echo CMD: $CMD
 
-	#set -o pipefail
-	eval $CMD
-	rc=$?
-	#set +o pipefail
+	preparedFile=$workFile
+}
 
-	#echo "RC: $rc"
-	# the following occurs due to 'set -o pipefail'
-	# 141 == SIGPIPE - SIGPIPE is set by 'head -1' closing the reader while the writer (sadf) is still active
-	# https://stackoverflow.com/questions/19120263/why-exit-code-141-with-grep-q
-	# This does not always seem to be the case, so, checking for exit 0 as well
-	if [ "$rc" -ne 141 -a "$rc" -ne 0 ]; then
-		echo
-		echo "  !!! This Metric Not Supported !!!"
-		echo "  removing ' $csvOutputFile ' from output"
-		echo "  CMD: $CMD"
-		echo 
-		rm -f  $csvOutputFile 2>/dev/null
-		unset sarDestOptions["$saropt"]
-	fi
-	#$sadfBin -d -- ${sarDestOptions[$i]}  | head -1 | $csvConvertCmd > ${sarDstDir}/${sarDestFiles[$i]}
-	echo "################"
-
-done
-
-rm -f $sar8tmpFile 2>/dev/null
-
-#exit
-
-#: <<'COMMENT'
-
-#for sarFiles in ${sarSrcDirs[$currentEl]}/sa??
 set +u
-# find and ls used to get the (up to) 30 most recent sar files
-# maybe find would be better
-for sarFiles in $(find ${linuxInfo['directory']} -type f \( -name "sa??" -o -name "sa??.*" -o -name "sa????????" -o -name "sa????????.*" \) | xargs ls -1dtar | tail -30)
+# find and ls used to get the (up to) 30 most recent sar files, oldest first
+declare -A csvInitialized=()
+
+for sarFile in $(find ${linuxInfo['directory']} -type f \( -name "sa??" -o -name "sa??.*" -o -name "sa????????" -o -name "sa????????.*" \) | xargs ls -1dtar | tail -30)
 do
 
-	declare sar7File sar8File
+	echo "Processing File: $sarFile"
 
-	#trap 'echo "# $LINENO:$BASH_LINENO main() - $BASH_COMMAND";read' DEBUG
+	preparedFile=''
+	if ! prepareSadfInput "$sarFile" || [[ -z $preparedFile ]]; then
+		echo "  skipping $sarFile - could not prepare it for sadf"
+		continue
+	fi
 
-	for sadfFile in $sarFiles
+	for saropt in "${!sarDestOptions[@]}"
 	do
 
-		sadfSourceFile=$sadfFile
+		csvOutputFile="${sarDstDir}/${sarDestOptions["$saropt"]}"
 
-		#echo CurrentEl: $currentEl
-		# sadf options
-		# -t is for local timestamp
-		# -d : database semi-colon delimited output
-
-		echo Processing File: $sadfFile
-
-		# if this is a sar file from Linux 7, convert it to Linux 8 format
-		# only if the sadf binary is 12.4.5 and the sar file is from Linux 7
-		echo "Linux Version: ${linuxInfo['version']}"
-		echo "sadf file type: $(file $sadfFile | awk '{ print $2 }' | tr '[A-Z]' '[a-z]')"
-
-		# is this a plain sar datafile, or a compressed file?
-		# if compressed, which compresssion
-		# can check with file or the extension
-		# using both I think
-		declare sadfFileType CMD
-		sadfFileType=$(file $sadfFile |  awk '{ print $2 }' | tr '[A-Z]' '[a-z]' )
-
-		echo $sadfFile type is $sadfFileType >&2
-
-		if [[ $sadfFileType == 'data' ]]; then
-
-			if [[ ${linuxInfo['version']} == '7' ]] && [[ $usingCustomSadf -eq 1 ]]; then
-				sar7File=$sadfFile
-				sar8File=$(mktemp -p /tmp/sar-tools sar8.XXXXXXXX)
-				echo "Converting Linux 7 sar file to Linux 8 format: $sar7File -> $sar8File"
-				convertSar7to8 "$sar7File" "$sar8File"
-				if [[ $? -ne 0 ]]; then
-					echo "2. Failed to convert $sar7File to $sar8File"
-					continue
-				fi
-				sadfFile="$sar8File"
-			fi
+		if [[ -z "${csvInitialized[$saropt]:-}" ]]; then
+			# first successful file for this option: keep the header row (line 1),
+			# strip its leading '# ', drop any LINUX-RESTART rows
+			CMD="$sadfBin -d -- $saropt $preparedFile | grep -Ev 'LINUX-RESTART' | sed -e '1s/^# //' -e 's/;/,/g' > $csvOutputFile"
+		else
+			# header already written: drop any header/comment or LINUX-RESTART rows
+			CMD="$sadfBin -d -- $saropt $preparedFile | grep -Ev '^#|LINUX-RESTART' | sed -e 's/;/,/g' >> $csvOutputFile"
 		fi
 
-		for saropt in "${!sarDestOptions[@]}"
-		do
+		echo "CMD: $CMD"
 
-			if [[ $sadfFileType == 'data' ]]; then
+		if [ "$dryRun" == 'N' ]; then
+			eval $CMD
+			rc=$?
 
-				CMD="$sadfBin -d -- $saropt $sadfFile | grep -Ev '^#\s*hostname|LINUX-RESTART' | tail -n +2 | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
-
-			else
-				# get the file extension - it should match the compression program
-				declare zipperExe
-				zipperExe=${zippers[$(echo $sadfSourceFile | awk -F\. '{ print $NF }' )]}
-				echo "sadfFile: $sadfSourceFile"
-				[[ -x $(which $zipperExe) ]] || { echo "skipping file $sadfFile - zip program '$zipperExe' not found" >&2; exit 1; }
-
-				if [[ ${linuxInfo['version']} == '7' ]] && [[ $usingCustomSadf -eq 1 ]]; then
-					zipTmpFile="/tmp/sar-tools/$(basename  $sadfFile)"
-					$zipperExe $unzipOptions $sadfSourceFile > $zipTmpFile
-
-					echo "Converting Linux 7 sar file to Linux 8 format: $zipTmpFile -> $sar8File"
-					convertSar7to8 "$zipTmpFile" "$sar8File"
-					if [[ $? -ne 0 ]]; then
-						echo "3. Failed to convert $zipTmpFile to $sar8File"
-						exit 1
-					fi
-
-					$zipperExe ${zipOptions[$zipperExe]} $sar8File
-					sadFile=$sar8File.$zipperExe
-						
+			# 141 == SIGPIPE - can occur when a downstream reader closes early
+			# https://stackoverflow.com/questions/19120263/why-exit-code-141-with-grep-q
+			if [ "$rc" -ne 141 -a "$rc" -ne 0 ]; then
+				if [[ -z "${csvInitialized[$saropt]:-}" ]]; then
+					echo
+					echo "  !!! This Metric Not Supported !!!"
+					echo "  removing ' $csvOutputFile ' from output"
+					echo "  CMD: $CMD"
+					echo
+					rm -f $csvOutputFile 2>/dev/null
+					unset 'sarDestOptions[$saropt]'
+				else
+					echo
+					echo "  !!! CMD Failed (rc=$rc) !!!"
+					echo "  CMD: $CMD"
+					echo
 				fi
-
-				# Currently unzipping sa files not work correctly on Linux 7 with the use of sadf-12.4.5 because the sar files are in Linux 7 format and sadf-12.4.5 does not support that format
-				# will return error 13 pipefail (RC is 141, subtract 128) if 'set -o pipefail'
-				CMD="$zipperExe $unzipOptions $sadfFile | $sadfBin -d -- $saropt | tail -n +2  | $csvConvertCmd  >> ${sarDstDir}/${sarDestOptions["$saropt"]} "
-
+				continue
 			fi
 
-			echo DCMD: $CMD
-
-			if [ "$dryRun" == 'N' ]; then
-				eval $CMD
-				declare RC=$?
-				if [[ $RC -ne 0 ]]; then
-					echo "#############################################"
-					echo "## CMD Failed"
-					echo "## $CMD"
-					echo "## RC: $RC"
-					echo "#############################################"
-	
-				fi
-			fi
-
-			(( i++ ))
-		done
+			csvInitialized[$saropt]=1
+		fi
 
 	done
 
-	rm -f $sar8File 2>/dev/null
-
 done
-
-exit
+set -u
 
 echo
-echo Processing complete 
-echo 
+echo Processing complete
+echo
 echo files located in $sarDstDir
-echo 
-
+echo
 
 # show the files created
-ls -ld ${sarDstDir}/*.csv
-
-cleanupTmpFiles
-
-#COMMENT
-
+ls -ld ${sarDstDir}/*.csv 2>/dev/null
