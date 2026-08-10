@@ -1,8 +1,8 @@
 
 All that is needed to prepare the sar files are these two files:
 
-- asp.sh
-- sadf-12.4.5
+- [asp.sh](./asp.sh)
+- [sadf-12.4.5](./sadf-12.4.5)
   - only needed for Linux versions 7 and 8
 
 
