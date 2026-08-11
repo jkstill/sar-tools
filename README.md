@@ -45,6 +45,9 @@ eg. `./asp.sh -d ./csv -p`
 
 ## asp.pl
 
+Note: asp.sh currently does a better job of locating sar files, and setting version dependencies. 
+There may not be any reason in the future to update the `asp.pl` script, as it is not as robust as `asp.sh`.
+
 The `asp.pl` script works similarly to the `asp.sh` script.
 
 The reason for the rewrite is it will be easier to accommodate changes to the sar command options is something other than Bash.
